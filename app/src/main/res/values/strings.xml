@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Player System</string>
+    <string name="widget_name">System · Daily Quests</string>
+    <string name="widget_desc">Level, XP and today\'s quests. Tap a quest to complete it.</string>
+</resources>

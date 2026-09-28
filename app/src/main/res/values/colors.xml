@@ -1,0 +1,9 @@
+<resources>
+    <color name="bg">#FF03050D</color>
+    <color name="ink">#FFE8EFFF</color>
+    <color name="dim">#FF8A97BB</color>
+    <color name="glow">#FF3D7BFF</color>
+    <color name="glow2">#FF8FC1FF</color>
+    <color name="red">#FFFF4F66</color>
+    <color name="gold">#FFF5BB4C</color>
+</resources>
