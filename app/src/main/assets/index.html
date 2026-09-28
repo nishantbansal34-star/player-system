@@ -481,7 +481,7 @@ function planFor(k){
     return Object.assign({},q,{detail,drills:q.id==="train"?drills:null,split});
   });
 }
-function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.name,detail:q.detail,xp:q.xp})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
+function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.id==="train"?"Training":q.name,detail:q.detail,xp:q.xp})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
 
 // ---- notes / log / toast ----
 function note(type,title,body,kind){ S.notes.unshift({t:Date.now(),type,title,body,kind:kind||""}); if(S.notes.length>50) S.notes.length=50; }
