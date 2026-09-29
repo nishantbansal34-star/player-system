@@ -201,6 +201,17 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .kpi .n{font-family:var(--f-ui);font-weight:700;font-size:24px}
 .kpi .t{font-family:var(--f-ui);font-size:10.5px;letter-spacing:.14em;color:var(--dim);text-transform:uppercase}
 
+/* heatmap + charts */
+.heat{display:flex;gap:3px;width:max-content}
+.heat span{display:flex;flex-direction:column;gap:3px}
+.heat i{width:9px;height:9px;border-radius:2px;display:block}
+.chart svg{width:100%;height:120px;display:block}
+.qedit{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:10px 0;border-bottom:1px solid rgba(100,140,255,.1)}
+.qedit:last-child{border-bottom:0}
+.toggle{width:44px;height:26px;border-radius:99px;background:rgba(120,140,200,.25);position:relative;flex:none;transition:background .2s}
+.toggle::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#cfd8ee;transition:transform .2s}
+.toggle.on{background:#2f6bff;box-shadow:0 0 10px rgba(61,123,255,.6)}
+.toggle.on::after{transform:translateX(18px);background:#fff}
 /* notifications */
 .note{display:grid;grid-template-columns:40px 1fr;gap:12px;align-items:start;padding:14px}
 .note .ni{width:40px;height:40px;border-radius:10px;display:grid;place-items:center;color:#9cc3ff;border:1px solid var(--line)}
@@ -220,7 +231,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .field input,.field select,textarea{background:rgba(3,6,18,.8);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;min-width:0}
 textarea{min-height:90px;font-family:var(--f-ui);font-size:12px}
 .form-row{display:flex;gap:8px;flex-wrap:wrap}
-.form-row input{flex:1 1 150px;min-width:0;background:rgba(3,6,18,.8);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.form-row > input{flex:1 1 150px;min-width:0;background:rgba(3,6,18,.8);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 .xbtn{color:var(--red);width:30px;height:30px;display:grid;place-items:center}
 .army{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .soldier{text-align:center;padding:14px 10px}
@@ -299,15 +310,21 @@ const STAT_KEYS=["STR","VIT","INT","AGI","FOC","DIS"];
 const STAT_NAMES={STR:"Strength",VIT:"Vitality",INT:"Intelligence",AGI:"Agility",FOC:"Focus",DIS:"Discipline"};
 const STAT_ICON={STR:"fist",VIT:"heart",INT:"bulb",AGI:"wind",FOC:"target",DIS:"moon"};
 const STAT_COLOR={STR:"#ff6b7d",VIT:"#ff8aa0",INT:"#9fb4ff",AGI:"#58d6ff",FOC:"#3ddc97",DIS:"#ffc36b"};
-const QDEF=[
-  {id:"train",name:"Physical Training",stat:"STR",xp:30,icon:"dumbbell",c:"#ff6b7d"},
-  {id:"walk",name:"Steps",stat:"AGI",xp:20,icon:"shoe",c:"#3ddc97"},
-  {id:"read",name:"Knowledge",stat:"INT",xp:20,icon:"book",c:"#b07bff"},
-  {id:"deep",name:"Deep Work",stat:"FOC",xp:30,icon:"laptop",c:"#4da3ff"},
-  {id:"water",name:"Hydration",stat:"VIT",xp:15,icon:"drop",c:"#36d1ff"},
-  {id:"disc",name:"Discipline",stat:"DIS",xp:25,icon:"moon",c:"#ffae57"}
+const BASE_QUESTS=[
+  {id:"train",name:"Physical Training",stat:"STR",xp:30,icon:"dumbbell",c:"#ff6b7d",kind:"auto",enabled:true,custom:""},
+  {id:"walk",name:"Steps",stat:"AGI",xp:20,icon:"shoe",c:"#3ddc97",kind:"auto",enabled:true,custom:""},
+  {id:"read",name:"Knowledge",stat:"INT",xp:20,icon:"book",c:"#b07bff",kind:"auto",enabled:true,custom:""},
+  {id:"deep",name:"Deep Work",stat:"FOC",xp:30,icon:"laptop",c:"#4da3ff",kind:"auto",enabled:true,custom:""},
+  {id:"water",name:"Hydration",stat:"VIT",xp:15,icon:"drop",c:"#36d1ff",kind:"auto",enabled:true,custom:""},
+  {id:"disc",name:"Discipline",stat:"DIS",xp:25,icon:"moon",c:"#ffae57",kind:"auto",enabled:true,custom:""}
 ];
-const CLEAR_AT=4;
+const CUSTOM_STYLE=[["star","#ff8ad8"],["bolt","#c3f25c"],["heart","#ffd166"],["target","#7afcff"]];
+const MAX_QUESTS=8;
+const REPO="nishantbansal34-star/player-system";
+function Q(){ return (S&&S.quests?S.quests:BASE_QUESTS).filter(q=>q.enabled!==false); }
+function clearAt(){ return Math.max(1,Math.ceil(Q().length*2/3)); }
+function qById(id){ return (S&&S.quests||BASE_QUESTS).find(q=>q.id===id); }
+const hasA=f=>!!(window.Android&&typeof window.Android[f]==="function");
 const RANKS=[
   {r:"E",from:1,to:9,label:"The weakest hunter"},
   {r:"D",from:10,to:24,label:"Habits forming"},
@@ -315,7 +332,7 @@ const RANKS=[
   {r:"B",from:40,to:59,label:"Proven hunter"},
   {r:"A",from:60,to:79,label:"Elite hunter"},
   {r:"S",from:80,to:99,label:"National level"},
-  {r:"M",from:100,to:100,label:"Shadow Monarch"}
+  {r:"M",from:100,to:100000,label:"Shadow Monarch · levels continue"}
 ];
 const DIFF={easy:.75,normal:1,hard:1.25};
 const SPLITS=["Push","Pull","Legs","Push","Pull","Legs"];
@@ -334,11 +351,19 @@ const ACH=[
   {id:"deep",name:"Deep Diver",rar:"epic",icon:"laptop",desc:"Complete 50 Deep Work sessions.",cond:s=>(s.counts.deep||0)>=50},
   {id:"iron",name:"Iron Will",rar:"epic",icon:"moon",desc:"No late-night social media, 30 times.",cond:s=>(s.counts.disc||0)>=30},
   {id:"adversity",name:"Overcame Adversity",rar:"epic",icon:"flame",desc:"Survive the Penalty Zone.",cond:s=>!!s.flags.penaltySurvived},
-  {id:"perfect",name:"Perfectionist",rar:"epic",icon:"star",desc:"Clear all 6 quests on 10 days.",cond:s=>s.perfectDays>=10},
+  {id:"perfect",name:"Perfectionist",rar:"epic",icon:"star",desc:"Clear every quest on 10 days.",cond:s=>s.perfectDays>=10},
   {id:"unbreak",name:"The Unbreakable",rar:"legendary",icon:"trophy",desc:"Reach a 30-day streak.",cond:s=>s.bestStreak>=30},
   {id:"necro",name:"Necromancer",rar:"legendary",icon:"ghost",desc:"Complete the Job Change.",cond:s=>s.job!=="None"},
   {id:"demon",name:"Demon Hunter",rar:"legendary",icon:"shield",desc:"Reach Level 50.",cond:s=>s.level>=50},
-  {id:"monarch",name:"Shadow Monarch",rar:"mythic",icon:"crown",desc:"Reach Level 100.",cond:s=>s.level>=100}
+  {id:"monarch",name:"Shadow Monarch",rar:"mythic",icon:"crown",desc:"Reach Level 100.",cond:s=>s.level>=100},
+  {id:"week",name:"Consistent",rar:"common",icon:"flame",desc:"Reach a 7-day streak.",cond:s=>s.bestStreak>=7},
+  {id:"measured",name:"Measured",rar:"common",icon:"stats",desc:"Log your first body check-in.",cond:s=>(s.body||[]).length>=1},
+  {id:"raider",name:"Dungeon Raider",rar:"rare",icon:"shield",desc:"Clear 4 Weekly Dungeons.",cond:s=>Object.keys(s.weekly||{}).length>=4},
+  {id:"raider2",name:"Dungeon Master",rar:"epic",icon:"shield",desc:"Clear 26 Weekly Dungeons.",cond:s=>Object.keys(s.weekly||{}).length>=26},
+  {id:"hundred",name:"Hundred Days",rar:"legendary",icon:"trophy",desc:"Reach a 100-day streak.",cond:s=>s.bestStreak>=100},
+  {id:"thousand",name:"Thousand Quests",rar:"legendary",icon:"star",desc:"Complete 1,000 quests in total.",cond:s=>Object.values(s.counts||{}).reduce((a,b)=>a+b,0)>=1000},
+  {id:"year",name:"One Full Year",rar:"mythic",icon:"crown",desc:"Reach a 365-day streak.",cond:s=>s.bestStreak>=365},
+  {id:"beyond",name:"Beyond the Monarch",rar:"mythic",icon:"bolt",desc:"Reach Level 150.",cond:s=>s.level>=150}
 ];
 const ITEMS={
   sword:{name:"Iron Will Sword",bonus:{STR:3},desc:"Forged from every rep you didn't skip."},
@@ -420,7 +445,9 @@ const pad=n=>String(n).padStart(2,"0");
 const dayKey=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
 const parseDay=k=>{const [y,m,d]=k.split("-").map(Number);return new Date(y,m-1,d)};
 const addDay=(k,n)=>{const d=parseDay(k);d.setDate(d.getDate()+n);return dayKey(d)};
-const today=()=>dayKey(new Date());
+const dayStartH=()=>(S&&S.settings&&S.settings.dayStart)||0;
+const today=()=>dayKey(new Date(Date.now()-dayStartH()*3600000));
+const weekKey=k=>{ const d=parseDay(k); const off=(d.getDay()+6)%7; d.setDate(d.getDate()-off); return dayKey(d); };
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
 const fmt=n=>Number(n).toLocaleString("en-IN");
@@ -437,20 +464,25 @@ function fresh(){
   return {v:2,name:"Nishant",startDate:t,lastSeen:t,level:1,xp:0,statPoints:0,
     stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:0,potions:0,streak:0,bestStreak:0,totalDays:0,perfectDays:0,
     job:"None",title:"Awakened",ach:[],items:[],counts:{},penalty:null,jobTrial:null,flags:{},
-    settings:{difficulty:"normal",restDay:0},
+    settings:{difficulty:"normal",restDay:0,dayStart:0,remindOn:true,remindAM:"08:00",remindPM:"21:00"},
+    quests:JSON.parse(JSON.stringify(BASE_QUESTS)),freezes:0,pause:null,weekly:{},bonusLoot:0,body:[],archive:{},totalXp:0,
     rewards:[{id:"r1",name:"Cheat meal",cost:400},{id:"r2",name:"Movie or series night",cost:250},{id:"r3",name:"Something new under ₹1,000",cost:900}],
     history:{},shadows:[],log:[],notes:[],notesSeen:0,pendingLevelUp:null};
 }
 function migrate(d){
   const s=fresh();
   if(!d) return null;
-  if(d.v===2){ const m=Object.assign(s,d); m.settings=Object.assign(fresh().settings,d.settings||{}); m.stats=Object.assign(fresh().stats,d.stats||{}); m.flags=d.flags||{}; m.counts=d.counts||{}; return m; }
+  if(d.v>=2){ const m=Object.assign(s,d); m.v=3; m.settings=Object.assign(fresh().settings,d.settings||{}); m.stats=Object.assign(fresh().stats,d.stats||{}); m.flags=d.flags||{}; m.counts=d.counts||{};
+    if(!Array.isArray(m.quests)||!m.quests.length) m.quests=JSON.parse(JSON.stringify(BASE_QUESTS));
+    if(!m.totalXp) m.totalXp=Object.values(m.history||{}).reduce((a,h)=>a+((h&&h.xp)||0),0);
+    ["weekly","archive"].forEach(k=>{ if(!m[k]||typeof m[k]!=="object") m[k]={}; }); if(!Array.isArray(m.body)) m.body=[];
+    return m; }
   ["name","startDate","lastSeen","level","xp","gold","potions","streak","bestStreak","totalDays","rewards","statPoints"].forEach(k=>{ if(d[k]!=null) s[k]=d[k]; });
   if(d.stats){ s.stats={STR:d.stats.STR||10,VIT:d.stats.VIT||10,INT:d.stats.INT||10,AGI:d.stats.AGI||10,FOC:d.stats.PER||10,DIS:10}; }
   return s;
 }
 function rec(k){ let h=S.history[k]; if(!h){ h=S.history[k]={q:{},xp:0}; } if(!h.q) h.q={}; return h; }
-const doneCount=h=>h?QDEF.filter(q=>h.q&&h.q[q.id]).length:0;
+const doneCount=h=>h?Q().filter(q=>h.q&&h.q[q.id]).length:0;
 function effStats(){ const e=Object.assign({},S.stats); S.items.forEach(k=>{ const b=(ITEMS[k]||{}).bonus||{}; Object.keys(b).forEach(s=>e[s]+=b[s]); }); return e; }
 function habitDone(h,id){ if(!h) return false; return id==="daily"?!!h.cleared:!!(h.q&&h.q[id]); }
 function habitStreak(id){ let k=today(), n=0; if(!habitDone(S.history[k],id)) k=addDay(k,-1); while(habitDone(S.history[k],id)){ n++; k=addDay(k,-1); } return n; }
@@ -470,8 +502,9 @@ function planFor(k){
   const water=[2,2.5,2.5,3,3,3.5][tier];
   const late=S.settings.difficulty==="hard"?"10":"11";
   const drills=(DRILLS[split]||[]).map(d=>[d[0],Array.isArray(d[1])?d[1][tier]:d[1]]);
-  return QDEF.map(q=>{
+  return Q().map(q=>{
     let detail="";
+    if(q.kind!=="auto"||q.custom){ return Object.assign({},q,{detail:q.custom||"",drills:null,split}); }
     if(q.id==="train") detail=(split==="Mobility"?"Mobility & stretch":split+" day")+" · "+mins+" min";
     if(q.id==="walk") detail="Walk "+fmt(steps)+" steps";
     if(q.id==="read") detail="Read "+pages+" pages";
@@ -481,7 +514,7 @@ function planFor(k){
     return Object.assign({},q,{detail,drills:q.id==="train"?drills:null,split});
   });
 }
-function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.id==="train"?"Training":q.name,detail:q.detail,xp:q.xp})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
+function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.id==="train"&&q.name==="Physical Training"?"Training":q.name,detail:q.detail,xp:q.xp,icon:q.icon})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
 
 // ---- notes / log / toast ----
 function note(type,title,body,kind){ S.notes.unshift({t:Date.now(),type,title,body,kind:kind||""}); if(S.notes.length>50) S.notes.length=50; }
@@ -496,9 +529,9 @@ function toast(head,msg,kind,icon,undo){
 // ---- progression ----
 function gain(base,k){
   const amt=Math.round(base*mult()); const from=S.level;
-  S.xp+=amt; rec(k||today()).xp+=amt;
-  while(S.level<100 && S.xp>=need(S.level)){ S.xp-=need(S.level); S.level++; S.statPoints+=5; }
-  if(S.level>=100){ S.xp=0; if(S.job!=="Shadow Monarch"){ S.job="Shadow Monarch"; note("level","Job changed","You have become the Shadow Monarch.","violet"); } }
+  S.xp+=amt; S.totalXp=(S.totalXp||0)+amt; rec(k||today()).xp+=amt;
+  while(S.xp>=need(S.level)){ S.xp-=need(S.level); S.level++; S.statPoints+=5; }
+  if(S.level>=100 && S.job!=="Shadow Monarch"){ S.job="Shadow Monarch"; note("level","Job changed","You have become the Shadow Monarch.","violet"); }
   if(S.level>from){ S.pendingLevelUp={from:(S.pendingLevelUp&&S.pendingLevelUp.from)||from,to:S.level}; note("level","Level up","You reached Level "+S.level+". +"+5*(S.level-from)+" stat points."); log("Reached Level "+S.level); }
   return amt;
 }
@@ -507,48 +540,83 @@ function checkAch(silent){
 }
 function afterQuest(h,k){
   const n=doneCount(h);
-  if(n>=CLEAR_AT && !h.cleared){
+  if(n>=clearAt() && !h.cleared){
     h.cleared=true; h.loot=true; S.streak++; S.totalDays++; S.bestStreak=Math.max(S.bestStreak,S.streak); S.statPoints+=3;
+    if(S.streak%7===0 && (S.freezes||0)<2){ S.freezes=(S.freezes||0)+1; note("loot","Streak shield earned","A shield will absorb one missed day. You hold "+S.freezes+".","gold"); }
     const x=gain(40,k);
     toast("Daily quest cleared","+"+x+" XP · +3 stat points · loot box ready","","trophy");
     note("quest","Daily quest cleared","+3 stat points. A loot box is waiting in Quests.");
     log("Daily quest cleared (streak "+S.streak+")");
   }
-  if(n>=QDEF.length && !h.perfect){
+  if(n>=Q().length && !h.perfect){
     h.perfect=true; S.perfectDays++; const x=gain(30,k); S.gold+=20;
-    toast("Perfect clear","All 6 quests · +"+x+" XP · +20 G","gold","star");
+    toast("Perfect clear","All quests · +"+x+" XP · +20 G","gold","star");
     if(S.jobTrial===k){ S.jobTrial=null; S.job="Necromancer"; note("shadow","Job change complete","You are now a Necromancer. ARISE is unlocked.","violet"); log("Job change: Necromancer"); setTimeout(()=>toast("Job change","You are now a Necromancer. ARISE unlocked.","violet","ghost"),700); }
   }
 }
-function completeQuest(id){
-  const k=today(), h=rec(k); if(h.q[id]) return;
+function canBackfill(){ const y=addDay(today(),-1); const hr=new Date().getHours(); const h=S.history[y]; return hr<12 && y>S.startDate && !(h&&h.cleared) && !(h&&h.paused); }
+function completeQuest(id,dayK){
+  const k=dayK||today(), h=rec(k); if(h.q[id]) return;
+  const q=qById(id); if(!q) return;
   undoSnap=JSON.stringify(S);
   h.q[id]=true; S.counts[id]=(S.counts[id]||0)+1; S.gold+=10;
-  const q=QDEF.find(q=>q.id===id); const x=gain(q.xp,k);
+  const x=gain(q.xp,k);
   haptic(25);
-  toast("Quest complete",q.name+" · +"+x+" XP · +10 G","",q.icon,true);
+  toast(k===today()?"Quest complete":"Logged for yesterday",q.name+" · +"+x+" XP · +10 G","",q.icon,true);
+  const wasCleared=!!h.cleared;
   afterQuest(h,k);
+  if(k!==today() && !wasCleared && h.cleared){
+    if(h.frozen){ h.frozen=false; S.freezes=Math.min(2,(S.freezes||0)+1); note("loot","Shield returned","Yesterday is cleared, so your streak shield is back.","gold"); }
+    if(S.penalty && S.penalty.forDay===k && !S.penalty.multi){
+      const t=S.history[today()]; S.streak=(S.penalty.prevStreak||0)+1+(t&&t.cleared?1:0); S.bestStreak=Math.max(S.bestStreak,S.streak);
+      S.penalty=null; ui.plankEnd=null; note("penalty","Penalty lifted","You logged yesterday in time. Streak restored to "+S.streak+".");
+      setTimeout(()=>toast("System","Penalty lifted. Streak restored to "+S.streak+".","","flame"),600);
+    }
+  }
   commit();
 }
 function undo(){ if(!undoSnap) return; S=JSON.parse(undoSnap); undoSnap=null; document.getElementById("toasts").innerHTML=""; commit(true); }
 
 // ---- day rollover ----
+function archiveOld(){
+  const ks=Object.keys(S.history).sort(); if(ks.length<=400) return;
+  ks.slice(0,ks.length-400).forEach(k=>{ const h=S.history[k]||{}, m=k.slice(0,7); const a=S.archive[m]||(S.archive[m]={days:0,cleared:0,perfect:0,xp:0,q:{}});
+    a.days++; if(h.cleared) a.cleared++; if(h.perfect) a.perfect++; a.xp+=h.xp||0; Object.keys(h.q||{}).forEach(id=>{ if(h.q[id]) a.q[id]=(a.q[id]||0)+1; }); delete S.history[k]; });
+}
 function processDays(){
   const t=today(); if(S.lastSeen===t) return false;
-  let d=S.lastSeen, missed=0;
-  while(d<t){ const h=S.history[d]; if(d>S.startDate && !(h&&h.cleared)) missed++; d=addDay(d,1); }
+  let d=S.lastSeen, missed=0, lastMiss=null, shielded=0; const prev=S.streak;
+  while(d<t){ const h=S.history[d];
+    if(d>S.startDate && !(h&&h.cleared)){
+      if(S.pause && d>=S.pause.since){ rec(d).paused=true; }
+      else if((S.freezes||0)>0){ S.freezes--; rec(d).frozen=true; shielded++; }
+      else { missed++; lastMiss=d; }
+    }
+    d=addDay(d,1); }
   if(S.jobTrial && S.jobTrial<t){ S.jobTrial=null; note("shadow","Trial failed","The Job Change trial expired. Try again another day.","red"); }
   S.lastSeen=t;
-  if(missed>0){ S.streak=0; if(!S.penalty) S.penalty={since:t}; note("penalty","Penalty issued","You failed the daily quest"+(missed>1?" on "+missed+" days":"")+". Survive the penalty to remove Weakened.","red"); log("Daily quest failed. Penalty issued."); }
-  note("quest","System notice","Your daily quests have been generated.");
-  const ks=Object.keys(S.history).sort(); while(ks.length>400) delete S.history[ks.shift()];
+  if(shielded) note("loot","Streak shield used",shielded+" missed day"+(shielded>1?"s were":" was")+" absorbed. Your streak is safe.","gold");
+  if(missed>0){
+    if(S.penalty){ S.penalty.forDay=lastMiss; S.penalty.multi=true; } else S.penalty={since:t,forDay:lastMiss,prevStreak:prev,multi:missed>1};
+    S.streak=0;
+    note("penalty","Penalty issued","You failed the daily quest"+(missed>1?" on "+missed+" days":"")+". Survive the penalty to remove Weakened."+(missed===1?" Forgot to log? You can log yesterday until noon.":""),"red"); log("Daily quest failed. Penalty issued.");
+  }
+  note("quest","System notice",S.pause?"Pause mode is on. No penalties while you're away.":"Your daily quests have been generated.");
+  archiveOld();
+  const wk=Object.keys(S.weekly||{}).sort(); while(wk.length>120) delete S.weekly[wk.shift()];
   return true;
 }
-
+function reconcile(){
+  // Weekly Dungeon: clear 5 days in a Monday-Sunday week.
+  const t=today(), wk=weekKey(t); let c=0; for(let i=0;i<7;i++){ const k=addDay(wk,i); if(S.history[k]&&S.history[k].cleared) c++; }
+  if(c>=5 && !S.weekly[wk]){ S.weekly[wk]=true; const x=gain(100,t); S.gold+=150; S.bonusLoot=(S.bonusLoot||0)+1;
+    note("loot","Weekly Dungeon cleared","+"+x+" XP, +150 G and a dungeon chest.","gold"); setTimeout(()=>toast("Weekly Dungeon cleared","+"+x+" XP · +150 G · dungeon chest","gold","shield"),800); }
+  checkAch();
+}
 // ================= persistence =================
 let saving=false, dirty=false, saveTimer=null;
-function serial(){ S.plan=widgetPlan(); S.mult=mult(); S.smult=1+Math.min(.3,activeShadows()*.03); S.clearAt=CLEAR_AT; return JSON.stringify(S); }
-function commit(now){ checkAch(); render(); dirty=true; clearTimeout(saveTimer); if(window.Android) flush(); else saveTimer=setTimeout(flush,now?50:600); }
+function serial(){ S.plan=widgetPlan(); S.mult=mult(); S.smult=1+Math.min(.3,activeShadows()*.03); S.clearAt=clearAt(); return JSON.stringify(S); }
+function commit(now){ reconcile(); render(); dirty=true; clearTimeout(saveTimer); if(window.Android) flush(); else saveTimer=setTimeout(flush,now?50:600); }
 async function flush(){
   if(saving){ saveTimer=setTimeout(flush,300); return; }
   if(!dirty||!S) return; dirty=false; saving=true;
@@ -571,6 +639,17 @@ async function boot(){
   if(S){ const ch=processDays(); checkAch(true); if(ch||!data||data.v!==2) commit(); else render(); }
   else render();
   setInterval(tick,1000);
+  setTimeout(()=>checkUpdate(false),2500);
+}
+window.__imported=function(json){ try{ const d=JSON.parse(json); if(!d||!d.level) throw 0; S=migrate(d); processDays(); toast("Backup","Progress restored from file.","","check"); commit(); }catch(e){ toast("Backup","That file isn't a Player System backup.","red","x"); } };
+window.__exported=function(ok){ toast("Backup",ok?"Backup file saved.":"Backup not saved.",ok?"":"red",ok?"check":"x"); };
+async function checkUpdate(manual){
+  if(!hasA("versionCode")) return;
+  try{ const r=await fetch("https://api.github.com/repos/"+REPO+"/releases/latest",{cache:"no-store"}); if(!r.ok) throw 0; const j=await r.json(); const n=parseInt(String(j.tag_name||"").replace(/\D/g,""),10);
+    const a=(j.assets||[]).find(x=>/\.apk$/.test(x.name));
+    if(n&&a&&n>Number(Android.versionCode())){ ui.update={n,url:a.browser_download_url}; render(); if(manual) toast("Update","Build "+n+" is available.","","refresh"); }
+    else if(manual) toast("Update","You're on the latest build.","","check");
+  }catch(e){ if(manual) toast("Update","Couldn't check. Are you online?","red","x"); }
 }
 window.__onResume=function(){ if(!window.Android) return; try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } } }catch(e){} };
 window.__back=function(){ if(document.getElementById("ov").innerHTML){ closeOv(); return true; } if(hist.length){ screen=hist.pop(); render(); return true; } if(screen!=="home"){ screen="home"; render(); return true; } return false; };
@@ -580,7 +659,7 @@ function tick(){
   const c=document.getElementById("clock"); if(c) c.textContent=untilMidnight();
   if(ui.plankEnd){ const left=Math.max(0,Math.ceil((ui.plankEnd-Date.now())/1000)); const pc=document.getElementById("pclock"); if(pc) pc.textContent="0:"+pad(left); const pb=document.getElementById("psurv"); if(pb&&left===0&&pb.disabled){ pb.disabled=false; haptic(200); } }
 }
-function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(24,0,0,0); const s=Math.floor((m-n)/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
+function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH(),0,0,0); if(m<=n) m.setDate(m.getDate()+1); const s=Math.floor((m-n)/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
 
 // ================= navigation =================
 function go(s){ if(s===screen) return; hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
@@ -616,7 +695,7 @@ function penaltyCard(){
     </div></section>`;
 }
 function vHome(){
-  const pct=S.level>=100?1:S.xp/need(S.level), h=S.history[today()], n=doneCount(h), r=rankOf(S.level);
+  const pct=S.xp/need(S.level), h=S.history[today()], n=doneCount(h), r=rankOf(S.level), N=Q().length, CA=clearAt();
   const q=QUOTES[(parseDay(today()).getDate())%QUOTES.length];
   return `${topbar()}
   <section class="home-hero">
@@ -626,15 +705,17 @@ function vHome(){
     <div class="lvl-lbl">LEVEL</div>
     <div class="lvl-big"><span class="num">${S.level}</span>${ico("bolt")}</div>
     <div class="bar thick" style="margin-top:14px;max-width:320px"><i style="width:${Math.round(pct*100)}%"></i></div>
-    <div class="xp-row" style="max-width:320px"><span>${S.level>=100?"MAX LEVEL":fmt(S.xp)+" / "+fmt(need(S.level))+" XP"}</span><span>${Math.round(pct*100)}%</span></div>
+    <div class="xp-row" style="max-width:320px"><span>${fmt(S.xp)+" / "+fmt(need(S.level))+" XP"}</span><span>${Math.round(pct*100)}%</span></div>
     <p class="quote">${esc(q)}</p>
   </section>
   <div class="stack">
+    ${updateCard()}
     ${penaltyCard()}
+    ${checkinDue()?`<section class="card" data-act="go" data-to="body" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("stats","","color:#8fc1ff")}<div><div class="label">Weekly check-in</div><div class="small">Log your weight and max reps to track real progress.</div></div></section>`:""}
     <section class="card hot today" data-act="go" data-to="quests" role="button" tabindex="0">
-      <div class="mini-ring" style="position:relative">${ring(70,n/QDEF.length,6,"m")}<div class="ring-center"><span class="num" style="font-weight:700;font-size:18px">${n}/6</span></div></div>
+      <div class="mini-ring" style="position:relative">${ring(70,n/N,6,"m")}<div class="ring-center"><span class="num" style="font-weight:700;font-size:18px">${n}/${N}</span></div></div>
       <div><h3>Today's quests</h3>
-        <div class="small muted">${h&&h.cleared?(h.perfect?"Perfect clear. Rest well.":"Cleared. "+(6-n)+" more for a perfect day."):"Clear "+Math.max(0,CLEAR_AT-n)+" more to avoid the penalty"}</div>
+        <div class="small muted">${S.pause?"Pause mode is on. No penalties.":h&&h.cleared?(h.perfect?"Perfect clear. Rest well.":"Cleared. "+(N-n)+" more for a perfect day."):"Clear "+Math.max(0,CA-n)+" more to avoid the penalty"}</div>
         <div class="tiny muted" style="margin-top:2px">Resets in <span class="num" id="clock">${untilMidnight()}</span></div></div>
     </section>
     <div class="pills">
@@ -642,37 +723,54 @@ function vHome(){
       <span class="pill">${ico("flame")}${S.streak}-day streak</span>
       <span class="pill gold">${ico("coin")}${fmt(S.gold)} G</span>
       ${S.statPoints?`<button class="pill" data-act="go" data-to="allocate">+${S.statPoints} stat points</button>`:""}
+      ${S.freezes?`<span class="pill gold">${ico("shield")}${S.freezes} shield${S.freezes>1?"s":""}</span>`:""}
       ${S.penalty?`<span class="pill red">Weakened · XP ×0.5</span>`:""}
       ${activeShadows()?`<span class="pill violet">${ico("ghost")}+${Math.round(Math.min(.3,activeShadows()*.03)*100)}% XP</span>`:""}
     </div>
   </div>`;
 }
+function updateCard(){
+  if(!ui.update) return "";
+  return `<section class="card hot" style="display:flex;gap:12px;align-items:center">${ico("refresh","","color:#8fc1ff;width:26px;height:26px")}<div style="flex:1;min-width:0"><div class="label" style="color:#9cc3ff">Update available</div><div class="small">Build ${ui.update.n} is ready. Install it over this one; your progress stays.</div></div><a class="btn sm" href="${ui.update.url}">Get it</a></section>`;
+}
+function weeklyCard(){
+  const t=today(), wk=weekKey(t); let c=0; const dots=[];
+  for(let i=0;i<7;i++){ const k=addDay(wk,i), h=S.history[k]; const ok=h&&h.cleared; if(ok) c++; dots.push(`<span title="${k}" style="width:22px;height:6px;border-radius:3px;background:${ok?"#8fc1ff":k===t?"rgba(143,193,255,.35)":"rgba(120,140,200,.16)"};box-shadow:${ok?"0 0 8px #3d7bff":"none"}"></span>`); }
+  const done=!!S.weekly[wk];
+  return `<section class="card${done?" hot":""}"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Weekly dungeon</div><div class="small">${done?"Cleared this week. Rewards claimed.":"Clear 5 days this week: +100 XP, +150 G, dungeon chest"}</div></div><span class="num" style="font-weight:700;font-size:18px">${Math.min(c,5)}/5</span></div>
+    <div style="display:flex;gap:5px;margin-top:10px">${dots.join("")}</div>
+    ${S.bonusLoot?`<button class="btn gold wide" style="margin-top:12px" data-act="bonusloot">${ico("chest")}Open dungeon chest${S.bonusLoot>1?" ×"+S.bonusLoot:""}</button>`:""}</section>`;
+}
 function vQuests(){
-  const k=today(), h=S.history[k]||{q:{}}, plan=planFor(k), n=doneCount(h), trial=S.jobTrial===k;
-  return `${topbar(trial?"Job change trial":"Daily quests",trial?"Clear all 6 at 1.5× targets before midnight.":"Complete today's objectives to grow stronger.")}
+  const back=ui.qday==="yesterday"&&canBackfill();
+  const k=back?addDay(today(),-1):today(), h=S.history[k]||{q:{}}, plan=planFor(k), n=doneCount(h), trial=S.jobTrial===k, N=Q().length, CA=clearAt();
+  return `${topbar(trial?"Job change trial":"Daily quests",trial?"Clear every quest at 1.5× targets before the day resets.":back?"Logging quests you did yesterday.":"Complete today's objectives to grow stronger.")}
   <div class="stack">
-  ${penaltyCard()}
+  ${canBackfill()?`<div class="seg"><button class="${back?"":"on"}" data-act="qday" data-t="today">Today</button><button class="${back?"on":""}" data-act="qday" data-t="yesterday">Yesterday · until noon</button></div>`:""}
+  ${S.pause?`<section class="card violet" style="display:flex;gap:12px;align-items:center">${ico("moon","","color:#c8a9ff")}<div style="flex:1"><div class="label" style="color:#c8a9ff">Pause mode</div><div class="small">No penalties while paused. Quests you do still count.</div></div><button class="btn violet sm" data-act="unpause">Resume</button></section>`:""}
+  ${back?"":penaltyCard()}
   ${plan.map(q=>{ const d=!!h.q[q.id];
     return `<section class="card quest${d?" done":""}">
       <div class="qicon" style="color:${q.c}">${ico(q.icon)}</div>
-      <div style="min-width:0"><div class="qname">${q.name}</div><div class="qdetail">${esc(q.detail)}</div></div>
+      <div style="min-width:0"><div class="qname">${esc(q.name)}</div><div class="qdetail">${esc(q.detail)}</div></div>
       <div class="qxp">+${Math.round(q.xp*mult())} XP</div>
-      <button class="qcheck" data-act="${d?"":"done"}" data-id="${q.id}" aria-label="${d?"Completed":"Complete "+q.name}" ${d?"disabled":""}>${ico("check")}</button>
-      ${q.id==="train"?`<button class="tiny muted" data-act="drill" style="grid-column:1/-1;text-align:left;font-family:var(--f-ui);letter-spacing:.1em;text-transform:uppercase">${ui.openDrill?"Hide":"Show"} today's ${q.split==="Mobility"?"stretches":"exercises"} ▾</button>
+      <button class="qcheck" data-act="${d?"":"done"}" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?"Completed":"Complete "+esc(q.name)}" ${d?"disabled":""}>${ico("check")}</button>
+      ${q.drills?`<button class="tiny muted" data-act="drill" style="grid-column:1/-1;text-align:left;font-family:var(--f-ui);letter-spacing:.1em;text-transform:uppercase">${ui.openDrill?"Hide":"Show"} today's ${q.split==="Mobility"?"stretches":"exercises"} ▾</button>
         ${ui.openDrill?`<div class="drill"><b>${q.split==="Mobility"?"Mobility & stretch":q.split+" day"}</b> · home, chin-up bar and floor<ul>${q.drills.map(x=>`<li>${esc(x[0])} — <span class="num">${esc(x[1])}</span></li>`).join("")}</ul></div>`:""}`:""}
     </section>`;}).join("")}
-  <div class="progress-line"><span>${n}/6 complete</span><span>Clear ${CLEAR_AT} to avoid the penalty · <span class="num" id="clock">${untilMidnight()}</span></span></div>
-  <div class="bar"><i style="width:${Math.round(n/6*100)}%"></i></div>
-  ${h.cleared&&!h.lootOpened?`<button class="btn wide" data-act="loot">${ico("chest")}Claim rewards</button>`:
+  <div class="progress-line"><span>${n}/${N} complete</span><span>Clear ${CA} to avoid the penalty · <span class="num" id="clock">${untilMidnight()}</span></span></div>
+  <div class="bar"><i style="width:${Math.round(n/N*100)}%"></i></div>
+  ${back?"":h.cleared&&!h.lootOpened?`<button class="btn wide" data-act="loot">${ico("chest")}Claim rewards</button>`:
     h.cleared?`<p class="center small muted">Rewards claimed. ${h.perfect?"Perfect day.":"Finish the rest for a perfect clear: +30 XP, +20 G."}</p>`:
-    `<button class="btn wide" disabled>${ico("chest")}Claim rewards</button><p class="center tiny muted" style="margin:0">Rewards unlock at ${CLEAR_AT}/6: +3 stat points, +40 XP and a loot box.</p>`}
+    `<button class="btn wide" disabled>${ico("chest")}Claim rewards</button><p class="center tiny muted" style="margin:0">Rewards unlock at ${CA}/${N}: +3 stat points, +40 XP and a loot box.</p>`}
+  ${back?"":weeklyCard()}
   </div>`;
 }
 function vStatus(){
-  const e=effStats(), pct=S.level>=100?1:S.xp/need(S.level), mx=Math.max(20,...STAT_KEYS.map(k=>e[k]));
+  const e=effStats(), pct=S.xp/need(S.level), mx=Math.max(20,...STAT_KEYS.map(k=>e[k]));
   const t=ACH.find(a=>a.name===S.title);
   return `${topbar("Player status")}
-  <div class="ring-wrap">${ring(220,pct,9,"s")}<div class="ring-center"><span class="l">LEVEL</span><span class="n num">${S.level}</span><span class="x num">${S.level>=100?"MAX":fmt(S.xp)+" / "+fmt(need(S.level))+" XP"}</span></div></div>
+  <div class="ring-wrap">${ring(220,pct,9,"s")}<div class="ring-center"><span class="l">LEVEL</span><span class="n num">${S.level}</span><span class="x num">${fmt(S.xp)+" / "+fmt(need(S.level))+" XP"}</span></div></div>
   <div class="stack">
   <div class="stat-grid">${STAT_KEYS.map(k=>`<section class="card stat-tile"><div class="k">${k}</div><div class="v num">${e[k]}</div><div class="bar"><i style="width:${Math.round(e[k]/mx*100)}%"></i></div>${e[k]>S.stats[k]?`<div class="plus-b">+${e[k]-S.stats[k]} items</div>`:""}</section>`).join("")}</div>
   ${S.statPoints?`<button class="btn wide" data-act="go" data-to="allocate">Allocate ${S.statPoints} stat points</button>`:""}
@@ -683,9 +781,9 @@ function vStatus(){
     <div style="width:84px">${art("crystal")}</div>
   </section>
   <section class="card"><div class="label">Path to Shadow Monarch</div>
-    <p class="small muted" style="margin:6px 0 8px">Level 100 takes about 10–12 months of clearing your daily quests. Quest targets grow with each rank.</p>
+    <p class="small muted" style="margin:6px 0 8px">Level 100 takes about 10–12 months of clearing your daily quests. Quest targets grow with each rank, and levels keep going after 100.</p>
     ${RANKS.map(x=>{ const now=S.level>=x.from&&S.level<=x.to, past=S.level>x.to;
-      return `<div class="lrow" style="${now?"color:#fff":past?"":"color:var(--faint)"}"><span class="num" style="width:26px;text-align:center;font-weight:700;${now?"color:#8fc1ff;text-shadow:0 0 10px #3d7bff":""}">${x.r==="M"?"♛":x.r}</span><span class="grow">${x.label}</span><span class="num tiny">${x.r==="M"?"Lv 100":"Lv "+x.from+"–"+x.to}</span></div>`;}).join("")}
+      return `<div class="lrow" style="${now?"color:#fff":past?"":"color:var(--faint)"}"><span class="num" style="width:26px;text-align:center;font-weight:700;${now?"color:#8fc1ff;text-shadow:0 0 10px #3d7bff":""}">${x.r==="M"?"♛":x.r}</span><span class="grow">${x.label}</span><span class="num tiny">${x.r==="M"?"Lv 100+":"Lv "+x.from+"–"+x.to}</span></div>`;}).join("")}
   </section>
   </div>`;
 }
@@ -731,20 +829,31 @@ function vInv(){
   <p class="tiny muted center" style="margin-top:12px">Items drop from loot boxes and add permanent stat bonuses.</p>`;
 }
 function windowDays(){ const t=today(); const n=ui.statTab==="week"?7:ui.statTab==="month"?30:365; const ks=[]; for(let i=n-1;i>=0;i--) ks.push(addDay(t,-i)); return ks; }
+function heatmap(){
+  const t=today(); const end=parseDay(t); const start=new Date(end); start.setDate(start.getDate()-363-((end.getDay()+6)%7));
+  const cols=[]; let d=new Date(start);
+  while(d<=end){ const col=[]; for(let i=0;i<7;i++){ const k=dayKey(d); const h=S.history[k];
+      let c="rgba(120,140,200,.10)"; if(k>t) c="transparent"; else if(k<S.startDate) c="rgba(120,140,200,.05)"; else if(h&&h.perfect) c="#8fc1ff"; else if(h&&h.cleared) c="#3d7bff"; else if(h&&(h.paused||h.frozen)) c="rgba(154,102,255,.5)"; else if(h&&doneCount(h)) c="rgba(61,123,255,.35)"; else if(k<t&&k>S.startDate) c="rgba(255,79,102,.35)";
+      col.push(`<i style="background:${c}" title="${k}"></i>`); d.setDate(d.getDate()+1); }
+    cols.push(`<span>${col.join("")}</span>`); }
+  return `<div class="heat">${cols.join("")}</div>`;
+}
 function vStats(){
   const ks=windowDays(), counted=ks.filter(k=>k>=S.startDate), denom=Math.max(1,counted.length);
   const year=ui.statTab==="year";
-  const months=[]; if(year){ const d=new Date(); for(let i=11;i>=0;i--){ const m=new Date(d.getFullYear(),d.getMonth()-i,1); months.push(m.getFullYear()+"-"+pad(m.getMonth()+1)); } }
-  const rows=QDEF.map(q=>{
+  const months=[]; if(year){ const d=parseDay(today()); for(let i=11;i>=0;i--){ const m=new Date(d.getFullYear(),d.getMonth()-i,1); months.push(m.getFullYear()+"-"+pad(m.getMonth()+1)); } }
+  const rows=Q().map(q=>{
     const done=counted.filter(k=>habitDone(S.history[k],q.id)).length, pc=Math.round(done/denom*100);
     let bars;
-    if(year){ bars=months.map(mk=>{ const ds=ks.filter(k=>k.startsWith(mk)&&k>=S.startDate); const r=ds.length?ds.filter(k=>habitDone(S.history[k],q.id)).length/ds.length:0; return r?`<i style="height:${Math.max(12,r*100)}%"></i>`:`<i class="off"></i>`; }).join(""); }
-    else bars=ks.map((k,i)=>habitDone(S.history[k],q.id)?`<i style="height:100%"></i>`:`<i class="off"></i>`).join("");
-    return `<div class="srow"><span style="color:${q.c}">${ico(q.icon,"",`width:20px;height:20px;filter:drop-shadow(0 0 5px ${q.c})`)}</span><span class="nm">${q.name}</span><div class="minibars" style="--c:${q.c}">${bars}</div><span class="pc">${pc}%</span></div>`;
+    if(year){ bars=months.map(mk=>{ const ds=ks.filter(k=>k.startsWith(mk)&&k>=S.startDate); let r=ds.length?ds.filter(k=>habitDone(S.history[k],q.id)).length/ds.length:0; const a=S.archive[mk]; if(!ds.length&&a&&a.days) r=(a.q[q.id]||0)/a.days; return r?`<i style="height:${Math.max(12,r*100)}%"></i>`:`<i class="off"></i>`; }).join(""); }
+    else bars=ks.map(k=>habitDone(S.history[k],q.id)?`<i style="height:100%"></i>`:`<i class="off"></i>`).join("");
+    return `<div class="srow"><span style="color:${q.c}">${ico(q.icon,"",`width:20px;height:20px;filter:drop-shadow(0 0 5px ${q.c})`)}</span><span class="nm">${esc(q.name)}</span><div class="minibars" style="--c:${q.c}">${bars}</div><span class="pc">${pc}%</span></div>`;
   }).join("");
-  const xpSeries=year?months.map(mk=>ks.filter(k=>k.startsWith(mk)).reduce((a,k)=>a+((S.history[k]||{}).xp||0),0)):ks.map(k=>(S.history[k]||{}).xp||0);
+  const xpSeries=year?months.map(mk=>ks.filter(k=>k.startsWith(mk)).reduce((a,k)=>a+((S.history[k]||{}).xp||0),0)||((S.archive[mk]||{}).xp||0)):ks.map(k=>(S.history[k]||{}).xp||0);
   const total=xpSeries.reduce((a,b)=>a+b,0), mx=Math.max(1,...xpSeries);
   const cleared=counted.filter(k=>S.history[k]&&S.history[k].cleared).length;
+  const totalQuests=Object.values(S.counts||{}).reduce((a,b)=>a+b,0);
+  const days=Math.max(1,Math.round((parseDay(today())-parseDay(S.startDate))/864e5)+1);
   return `${topbar("Stats & progress")}
   <div class="seg" style="margin-bottom:12px">${["week","month","year"].map(t=>`<button class="${ui.statTab===t?"on":""}" data-act="stattab" data-t="${t}">${t}</button>`).join("")}</div>
   <div class="stack">
@@ -752,7 +861,16 @@ function vStats(){
   <section class="card"><div class="label">Total XP this ${ui.statTab}</div><div class="xpbig num">+${fmt(total)}<small>XP</small></div>
     <div class="xpbars">${xpSeries.map(v=>`<i style="height:${Math.round(v/mx*100)}%;${v?"":"opacity:.25"}"></i>`).join("")}</div></section>
   <div class="kpis"><section class="card kpi"><div class="n num">${S.streak}</div><div class="t">Streak</div></section><section class="card kpi"><div class="n num">${S.bestStreak}</div><div class="t">Best</div></section><section class="card kpi"><div class="n num">${cleared}</div><div class="t">Cleared</div></section></div>
-  <p class="tiny muted center" style="margin:0">Percentages count days since you awakened on ${parseDay(S.startDate).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}.</p>
+  <section class="card"><div class="label">Last 12 months</div><div class="heatwrap" style="overflow-x:auto;margin-top:10px">${heatmap()}</div>
+    <div class="tiny muted" style="margin-top:8px">Bright: perfect · Blue: cleared · Violet: paused or shielded · Red: missed</div></section>
+  <section class="card"><div class="label">Lifetime</div>
+    <div class="lrow"><span class="grow">Days as a Player</span><span class="num">${fmt(days)}</span></div>
+    <div class="lrow"><span class="grow">Daily quests cleared</span><span class="num">${fmt(S.totalDays)}</span></div>
+    <div class="lrow"><span class="grow">Perfect days</span><span class="num">${fmt(S.perfectDays)}</span></div>
+    <div class="lrow"><span class="grow">Quests completed</span><span class="num">${fmt(totalQuests)}</span></div>
+    <div class="lrow"><span class="grow">Total XP earned</span><span class="num">${fmt(S.totalXp||0)}</span></div>
+    <div class="lrow"><span class="grow">Weekly dungeons cleared</span><span class="num">${fmt(Object.keys(S.weekly||{}).length)}</span></div></section>
+  <p class="tiny muted center" style="margin:0">Percentages count days since you awakened on ${parseDay(S.startDate).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}.</p>
   </div>`;
 }
 function vNotes(){
@@ -772,13 +890,13 @@ function vArmy(){
       <h3 style="font-family:var(--f-display);letter-spacing:.08em;margin:8px 0 4px">The Necromancer's Trial</h3>
       <p class="small" style="margin:0 0 10px;color:#d6c8ff">Your shadow army stays sealed until you change jobs.</p>
       <div class="lrow"><span class="qcheck" style="${can?"background:#6b3fe0;border-color:#b08bff":""}">${can?ico("check","","opacity:1;width:16px;height:16px"):""}</span><span class="grow">Reach Level 25 <span class="muted num">(now ${S.level})</span></span></div>
-      <div class="lrow"><span class="qcheck"></span><span class="grow">In one day, clear all 6 quests at 1.5× targets</span></div>
+      <div class="lrow"><span class="qcheck"></span><span class="grow">In one day, clear every quest at 1.5× targets</span></div>
       ${trial?`<p class="small" style="color:#d6c8ff">Trial in progress. Finish in Quests before midnight.</p>`:`<button class="btn violet wide" style="margin-top:10px" data-act="trial" ${can?"":"disabled"}>${can?"Begin the trial today":"Locked until Level 25"}</button>`}
     </section>
     <p class="small muted" style="margin:0 4px">After the job change, any quest you keep for 21 days in a row can rise as a shadow soldier. Each active shadow gives +3% XP, up to +30%.</p></div>`;
   }
-  const habits=["daily"].concat(QDEF.map(q=>q.id));
-  const hn=id=>id==="daily"?"Daily quest":QDEF.find(q=>q.id===id).name;
+  const habits=["daily"].concat(Q().map(q=>q.id));
+  const hn=id=>id==="daily"?"Daily quest":((qById(id)||{}).name||"Retired quest");
   return `${topbar("Shadow army","",true)}
   <div class="stack" style="margin-top:12px">
   ${S.shadows.length?`<div class="army">${S.shadows.map(sh=>{ const st=habitStreak(sh.habit), g=(GRADES.find(x=>st>=x[0])||[0,"Dormant"])[1];
@@ -801,22 +919,81 @@ function vStore(){
 }
 function vSettings(){
   const days=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const st=S.settings, A=!!window.Android;
+  const qs=S.quests, on=qs.filter(q=>q.enabled!==false).length;
+  const ed=ui.editQ?qs.find(q=>q.id===ui.editQ):null;
   return `${topbar("Settings","",true)}
   <div class="stack" style="margin-top:12px">
+  <section class="card"><div class="label">Your quests</div>
+    <p class="tiny muted" style="margin:4px 0 4px">${on} active · clear ${clearAt()} each day. Turn quests off or set your own targets as life changes.</p>
+    ${qs.map(q=>`<div class="qedit"><span style="color:${q.c}">${ico(q.icon,"",`filter:drop-shadow(0 0 5px ${q.c})`)}</span>
+      <button style="text-align:left;min-width:0" data-act="editq" data-id="${q.id}"><div class="small" style="font-weight:600">${esc(q.name)}</div><div class="tiny muted">${esc(q.custom||(q.kind==="auto"?"Target grows with your rank":"No detail"))} · ${q.xp} XP · edit</div></button>
+      <button class="toggle ${q.enabled!==false?"on":""}" data-act="toggleq" data-id="${q.id}" aria-label="Turn ${esc(q.name)} ${q.enabled!==false?"off":"on"}"></button></div>`).join("")}
+    ${ed?`<div class="stack" style="margin-top:12px;padding:12px;border:1px dashed var(--line-2);border-radius:12px">
+      <div class="field"><label class="label" for="qName">Name</label><input id="qName" maxlength="28" value="${esc(ed.name)}"></div>
+      <div class="field"><label class="label" for="qDetail">Target${ed.kind==="auto"?" (leave empty to grow with rank)":""}</label><input id="qDetail" maxlength="48" placeholder="${ed.kind==="auto"?"e.g. Walk 8,000 steps":"e.g. Practise guitar 15 min"}" value="${esc(ed.custom||"")}"></div>
+      ${ed.kind==="custom"?`<div class="field"><label class="label" for="qStat">Stat</label><select id="qStat">${STAT_KEYS.map(k=>`<option value="${k}" ${ed.stat===k?"selected":""}>${STAT_NAMES[k]}</option>`).join("")}</select></div>`:""}
+      <div class="form-row"><button class="btn sm" data-act="saveq" data-id="${ed.id}">Save</button><button class="btn ghost sm" data-act="editq" data-id="">Cancel</button>${ed.kind==="custom"?`<button class="btn red sm" data-act="delq" data-id="${ed.id}">Delete</button>`:""}</div></div>`:""}
+    ${qs.filter(q=>q.kind==="custom").length<2&&on<MAX_QUESTS?`<button class="btn ghost sm" style="margin-top:10px" data-act="addq">+ Add your own quest</button>`:""}
+  </section>
   <section class="card stack">
     <div class="field"><label class="label" for="setName">Player name</label><input id="setName" value="${esc(S.name)}" maxlength="24"></div>
-    <div class="field"><span class="label">Difficulty</span><div class="seg">${["easy","normal","hard"].map(d=>`<button class="${S.settings.difficulty===d?"on":""}" data-act="diff" data-t="${d}">${d}</button>`).join("")}</div>
+    <div class="field"><span class="label">Difficulty</span><div class="seg">${["easy","normal","hard"].map(d=>`<button class="${st.difficulty===d?"on":""}" data-act="diff" data-t="${d}">${d}</button>`).join("")}</div>
       <span class="tiny muted">Easy trims every target by a quarter. Hard adds a quarter and moves the social-media cutoff to 10 PM.</span></div>
-    <div class="field"><label class="label" for="setRest">Mobility day (light stretching only)</label><select id="setRest">${days.map((d,i)=>`<option value="${i}" ${S.settings.restDay===i?"selected":""}>${d}</option>`).join("")}</select>
-      <span class="tiny muted">The other six days rotate Push, Pull and Legs.</span></div>
+    <div class="field"><label class="label" for="setDay">Day resets at</label><select id="setDay">${[0,1,2,3,4].map(h=>`<option value="${h}" ${st.dayStart===h?"selected":""}>${h===0?"12:00 AM (midnight)":h+":00 AM"}</option>`).join("")}</select>
+      <span class="tiny muted">If you're often up late, quests you finish before this time still count for the day before.</span></div>
+    <div class="field"><label class="label" for="setRest">Mobility day (light stretching only)</label><select id="setRest">${days.map((d,i)=>`<option value="${i}" ${st.restDay===i?"selected":""}>${d}</option>`).join("")}</select></div>
   </section>
+  ${A?`<section class="card stack"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="label">Reminders</div><div class="tiny muted">Morning quest notice and an evening warning if you're behind.</div></div><button class="toggle ${st.remindOn?"on":""}" data-act="remind" aria-label="Reminders"></button></div>
+    ${st.remindOn?`<div class="form-row"><div class="field" style="flex:1"><label class="label" for="remAM">Morning</label><input id="remAM" type="time" value="${esc(st.remindAM)}"></div><div class="field" style="flex:1"><label class="label" for="remPM">Evening warning</label><input id="remPM" type="time" value="${esc(st.remindPM)}"></div></div>`:""}
+  </section>`:""}
+  <section class="card stack"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Pause mode</div><div class="tiny muted">Travelling or unwell? No penalties and your streak waits for you.</div></div><button class="toggle ${S.pause?"on":""}" data-act="${S.pause?"unpause":"pause"}" aria-label="Pause mode"></button></div>
+    <div class="tiny muted">Streak shields: <b style="color:var(--gold)">${S.freezes||0}/2</b>. You earn one every 7-day streak; each absorbs one missed day automatically.</div></section>
   <section class="card stack"><div class="label">Backup</div>
-    <p class="small muted" style="margin:0">Copy a backup code to move your progress between the phone app and the web version.</p>
+    ${A?`<p class="small muted" style="margin:0">Save a backup file to your phone or Google Drive, and restore it on a new phone. The app also keeps 14 days of automatic snapshots.</p>
+      <div class="form-row"><button class="btn sm" data-act="exportfile">Save backup file</button><button class="btn ghost sm" data-act="importfile">Restore from file</button><button class="btn ghost sm" data-act="snaps">Snapshots</button></div>
+      ${ui.snaps?`<div class="list">${ui.snaps.length?ui.snaps.map(n=>`<div class="lrow"><span class="grow small num">${esc(n.replace("state-","").replace(".json",""))}</span><button class="btn ghost sm" data-act="restoresnap" data-id="${esc(n)}">${ui.pendingSnap===n?"Tap again to restore":"Restore"}</button></div>`).join(""):`<p class="tiny muted">No snapshots yet. One is saved each day you use the app.</p>`}</div>`:""}`
+    :`<p class="small muted" style="margin:0">Copy a backup code to move your progress between the web version and the phone app.</p>`}
     <div class="form-row"><button class="btn ghost sm" data-act="export">Copy backup code</button><button class="btn ghost sm" data-act="import-open">Restore from code</button></div>
     ${ui.importOpen?`<textarea id="importBox" placeholder="Paste a backup code"></textarea><button class="btn sm" data-act="import">Restore</button>`:""}
   </section>
+  ${A?`<section class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">App version</div><div class="small num">Build ${esc(String(Android.versionCode()))}${ui.update?` · build ${ui.update.n} available`:""}</div></div><button class="btn ghost sm" data-act="checkupdate">Check for update</button></section>`:""}
   <section class="card red"><div class="label" style="color:#ff9aaa">Reset</div><p class="small" style="margin:6px 0 10px;color:#ffc9d1">Erase every level, stat and record, and start again from Level 1.</p>
     <button class="btn red sm" data-act="reset">${ui.pendingReset?"Tap again to erase everything":"Reset the System"}</button></section>
+  </div>`;
+}
+function checkinDue(){ const b=S.body||[]; if(!b.length) return S.totalDays>=3; return (parseDay(today())-parseDay(b[b.length-1].d))/864e5>=7; }
+function lineChart(vals,color,unit){
+  const pts=vals.filter(v=>v.v!=null&&v.v!==""); if(pts.length<2) return `<p class="tiny muted" style="margin:6px 0 0">${pts.length?"Latest: "+pts[0].v+unit+". Log again next week to see a trend.":"No entries yet."}</p>`;
+  const ys=pts.map(p=>+p.v), lo=Math.min(...ys), hi=Math.max(...ys), rg=(hi-lo)||1, W=300, H=110, P=14;
+  const xy=pts.map((p,i)=>[P+i*(W-2*P)/(pts.length-1), H-P-((+p.v-lo)/rg)*(H-2*P)]);
+  const d=xy.map((q,i)=>(i?"L":"M")+q[0].toFixed(1)+" "+q[1].toFixed(1)).join(" ");
+  const first=ys[0], last=ys[ys.length-1], diff=+(last-first).toFixed(1);
+  return `<div class="chart"><svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><path d="M${P} ${H-P}H${W-P}" stroke="rgba(120,140,200,.2)"/><path d="${d} L${xy[xy.length-1][0]} ${H-P} L${P} ${H-P}Z" fill="${color}" opacity=".12"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2.2" stroke-linejoin="round"/>${xy.map((q,i)=>`<circle cx="${q[0]}" cy="${q[1]}" r="${i===xy.length-1?4:2.5}" fill="${color}"/>`).join("")}</svg></div>
+    <div class="tiny muted">${pts.length} check-ins · latest <b style="color:var(--ink)">${last}${unit}</b> · ${diff>0?"+":""}${diff}${unit} since first</div>`;
+}
+function vBody(){
+  const b=S.body||[], last=b[b.length-1]||{};
+  const series=k=>b.map(e=>({v:e[k]}));
+  return `${topbar("Body check-in","Once a week. Real numbers behind the levels.",true)}
+  <div class="stack">
+  <form class="card stack" id="bodyForm">
+    <div class="form-row">
+      <div class="field" style="flex:1 1 90px"><label class="label" for="bWeight">Weight (kg)</label><input id="bWeight" type="number" step="0.1" inputmode="decimal" placeholder="${last.weight||"70.0"}"></div>
+      <div class="field" style="flex:1 1 90px"><label class="label" for="bWaist">Waist (in)</label><input id="bWaist" type="number" step="0.5" inputmode="decimal" placeholder="${last.waist||"32"}"></div>
+    </div>
+    <div class="form-row">
+      <div class="field" style="flex:1 1 90px"><label class="label" for="bPush">Max push-ups</label><input id="bPush" type="number" inputmode="numeric" placeholder="${last.push||"20"}"></div>
+      <div class="field" style="flex:1 1 90px"><label class="label" for="bPull">Max chin-ups</label><input id="bPull" type="number" inputmode="numeric" placeholder="${last.pull||"3"}"></div>
+    </div>
+    <p class="tiny muted" style="margin:0">Max reps: one set, good form, stop when form breaks. Fill in only what you measured. A check-in earns +40 XP once a week.</p>
+    <button class="btn wide" type="submit">Log check-in</button>
+  </form>
+  <section class="card"><div class="label">Max push-ups</div>${lineChart(series("push"),"#ff6b7d","")}</section>
+  <section class="card"><div class="label">Max chin-ups</div>${lineChart(series("pull"),"#8fc1ff","")}</section>
+  <section class="card"><div class="label">Weight</div>${lineChart(series("weight"),"#3ddc97"," kg")}</section>
+  <section class="card"><div class="label">Waist</div>${lineChart(series("waist"),"#ffae57"," in")}</section>
+  ${b.length?`<section class="card"><div class="label">History</div>${b.slice().reverse().slice(0,12).map(e=>`<div class="lrow tiny"><span class="grow num">${e.d}</span><span class="num">${[e.weight?e.weight+" kg":"",e.waist?e.waist+" in":"",e.push!=null&&e.push!==""?e.push+" push":"",e.pull!=null&&e.pull!==""?e.pull+" chin":""].filter(Boolean).join(" · ")}</span></div>`).join("")}</section>`:""}
   </div>`;
 }
 function vAwaken(){
@@ -825,7 +1002,7 @@ function vAwaken(){
     <div class="wordmark" style="margin-top:10px">SYSTEM</div>
     <p class="muted" style="margin:16px 0 0">You have acquired the qualifications to be a <b style="color:#fff">Player</b>.</p>
     <p class="q">Will you accept?</p>
-    <p class="small muted">Six small daily quests: training, steps, reading, deep work, water and a screen curfew. Clear 4 of them each day to grow. Miss and you face the Penalty Zone.</p>
+    <p class="small muted">Six small daily quests: training, steps, reading, deep work, water and a screen curfew. Clear 4 of them each day to grow. Miss and you face the Penalty Zone. You can change the quests any time.</p>
     <button class="btn wide" style="margin-top:14px" data-act="accept">Accept</button></div></div>`;
 }
 
@@ -845,10 +1022,11 @@ function ovLevelUp(){
   haptic(120);
   S.pendingLevelUp=null; dirty=true; flush();
 }
-function openLoot(){
-  const h=rec(today()); if(!h.loot||h.lootOpened) return;
-  h.lootOpened=true;
-  const r=Math.random(); let res, artKey="chest";
+function openLoot(bonus){
+  const h=rec(today());
+  if(bonus){ if(!(S.bonusLoot>0)) return; S.bonusLoot--; }
+  else { if(!h.loot||h.lootOpened) return; h.lootOpened=true; }
+  const r=bonus?Math.random()*.5:Math.random(); let res, artKey="chest";
   const missing=Object.keys(ITEMS).filter(k=>!S.items.includes(k));
   if(r<.10&&missing.length){ const k=missing[Math.floor(Math.random()*missing.length)]; S.items.push(k); artKey=k; res={t:ITEMS[k].name,d:Object.entries(ITEMS[k].bonus).map(([s,v])=>"+"+v+" "+s).join(" · ")+" permanently"}; note("loot","Rare item found",ITEMS[k].name,"gold"); }
   else if(r<.18){ S.potions++; artKey="potion"; res={t:"Status Recovery potion",d:"Cancels one penalty."}; }
@@ -866,7 +1044,7 @@ function openLoot(){
   commit();
 }
 function ovMenu(){
-  const items=[["status","user","Status"],["quests","quests","Quests"],["inventory","bag","Inventory"],["stats","stats","Stats"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"]];
+  const items=[["status","user","Status"],["quests","quests","Quests"],["inventory","bag","Inventory"],["stats","stats","Stats"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"],["body","fist","Body"]];
   const cx=160, cy=158, R=122;
   document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg"><div class="radial">
     <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 320 360" aria-hidden="true"><circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(110,160,255,.25)" stroke-dasharray="2 6"/><circle cx="${cx}" cy="${cy}" r="${R-40}" fill="none" stroke="rgba(110,160,255,.12)"/></svg>
@@ -886,10 +1064,11 @@ function render(){
   nav.hidden=false;
   const tabOf={home:"home",quests:"quests",stats:"stats",inventory:"inventory"};
   nav.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",tabOf[screen]===b.dataset.nav||(!tabOf[screen]&&b.dataset.nav==="menu"));
-    const dot=(b.dataset.nav==="quests"&&(!!S.penalty||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
+    const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
-  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings}[screen]||vHome;
+  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody}[screen]||vHome;
   app.innerHTML=V();
+  const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) fx.mode=screen==="home"?"home":"calm";
   if(S.pendingLevelUp && !document.getElementById("ov").innerHTML) setTimeout(ovLevelUp,350);
 }
@@ -906,7 +1085,22 @@ document.addEventListener("click",e=>{
     case "go": if(b.dataset.to==="allocate") ui.alloc=null; go(b.dataset.to); break;
     case "back": window.__back(); break;
     case "notes": go("notes"); break;
-    case "done": completeQuest(id); break;
+    case "done": completeQuest(id,b.dataset.back&&canBackfill()?addDay(today(),-1):null); break;
+    case "qday": ui.qday=b.dataset.t; render(); break;
+    case "bonusloot": openLoot(true); break;
+    case "pause": S.pause={since:today()}; note("quest","Pause mode on","No penalties until you resume. Enjoy the break."); toast("Pause mode","No penalties until you resume.","violet","moon"); commit(); break;
+    case "unpause": if(S.pause){ S.pause=null; note("quest","Welcome back","Pause mode is off. Today's quests are live."); toast("System","Welcome back, Player. Quests are live again.","","bolt"); commit(); } break;
+    case "editq": ui.editQ=id||null; render(); break;
+    case "toggleq": { const q=qById(id); if(!q) break; const on=S.quests.filter(x=>x.enabled!==false).length; if(q.enabled!==false){ if(on<=3){ toast("Quests","Keep at least 3 quests active.","red","x"); break; } q.enabled=false; } else { if(on>=MAX_QUESTS){ toast("Quests","You can have up to 8 active quests.","red","x"); break; } q.enabled=true; } commit(); break; }
+    case "saveq": { const q=qById(id); if(!q) break; const nm=document.getElementById("qName").value.trim(); const dt=document.getElementById("qDetail").value.trim(); if(nm) q.name=nm; q.custom=dt; const sel=document.getElementById("qStat"); if(sel) q.stat=sel.value; ui.editQ=null; toast("Quests","Saved.","","check"); commit(); break; }
+    case "addq": { const on=S.quests.filter(x=>x.enabled!==false).length; const nc=S.quests.filter(x=>x.kind==="custom").length; if(on>=MAX_QUESTS||nc>=2) break; const sty=CUSTOM_STYLE[S.quests.length%CUSTOM_STYLE.length]; const q={id:"c"+uid(),name:"New quest",stat:"DIS",xp:20,icon:sty[0],c:sty[1],kind:"custom",enabled:true,custom:""}; S.quests.push(q); ui.editQ=q.id; commit(); break; }
+    case "delq": S.quests=S.quests.filter(x=>x.id!==id); ui.editQ=null; commit(); break;
+    case "remind": S.settings.remindOn=!S.settings.remindOn; if(S.settings.remindOn&&hasA("requestNotifications")) Android.requestNotifications(); commit(); break;
+    case "exportfile": if(hasA("exportBackup")) Android.exportBackup(serial()); break;
+    case "importfile": if(hasA("importBackup")) Android.importBackup(); break;
+    case "snaps": try{ ui.snaps=JSON.parse(Android.listSnapshots()); }catch(err){ ui.snaps=[]; } render(); break;
+    case "restoresnap": if(ui.pendingSnap!==id){ ui.pendingSnap=id; render(); break; } try{ const d=JSON.parse(Android.readSnapshot(id)); if(!d||!d.level) throw 0; S=migrate(d); ui.pendingSnap=null; ui.snaps=null; processDays(); toast("Backup","Snapshot restored.","","check"); commit(); }catch(err){ toast("Backup","That snapshot couldn't be read.","red","x"); } break;
+    case "checkupdate": checkUpdate(true); break;
     case "undo": undo(); break;
     case "drill": ui.openDrill=!ui.openDrill; render(); break;
     case "loot": openLoot(); break;
@@ -924,7 +1118,7 @@ document.addEventListener("click",e=>{
     case "plank": ui.plankEnd=Date.now()+60000; render(); break;
     case "survive": if(!S.penalty) break; S.penalty=null; ui.plankEnd=null; S.flags.penaltySurvived=true; log("Survived the Penalty Zone."); note("penalty","Penalty cleared","You survived. Weakened removed."); toast("System","You survived the Penalty Zone. Weakened removed.","","flame"); commit(); break;
     case "potion": if(!S.penalty||S.potions<1) break; S.potions--; S.penalty=null; ui.plankEnd=null; log("Used a Status Recovery potion."); toast("System","Penalty cancelled. Weakened removed.","gold","potion"); closeOv(); commit(); break;
-    case "trial": if(S.level<25||S.job!=="None") break; S.jobTrial=today(); note("shadow","Job change quest","Clear all 6 quests at 1.5× targets before midnight.","violet"); toast("Job change quest","Clear all 6 at 1.5× targets before midnight.","violet","ghost"); commit(); go("quests"); break;
+    case "trial": if(S.level<25||S.job!=="None") break; S.jobTrial=today(); note("shadow","Job change quest","Clear every quest at 1.5× targets before the day resets.","violet"); toast("Job change quest","Clear every quest at 1.5× targets today.","violet","ghost"); commit(); go("quests"); break;
     case "arise": { if(S.job==="None"||S.shadows.some(s=>s.habit===id)) break; const name=SHADOW_NAMES[S.shadows.length]; if(!name) break; S.shadows.push({name,habit:id,since:today()}); note("shadow","Arise",name+" joined your shadow army.","violet"); fx.mode="burst"; setTimeout(()=>fx.mode="calm",1500); toast("Arise",name+" has joined your shadow army.","violet","ghost"); haptic(150); commit(); break; }
     case "buy": {
       if(id==="potion"){ if(S.gold<500) break; S.gold-=500; S.potions++; toast("Store","Status Recovery potion added.","gold","potion"); commit(); break; }
@@ -944,9 +1138,21 @@ document.addEventListener("change",e=>{
   if(!S) return;
   if(e.target.id==="setName"){ S.name=e.target.value.trim()||"Player"; commit(); }
   if(e.target.id==="setRest"){ S.settings.restDay=Number(e.target.value); commit(); }
+  if(e.target.id==="setDay"){ S.settings.dayStart=Number(e.target.value); S.lastSeen=today(); commit(); }
+  if(e.target.id==="remAM"&&e.target.value){ S.settings.remindAM=e.target.value; commit(); }
+  if(e.target.id==="remPM"&&e.target.value){ S.settings.remindPM=e.target.value; commit(); }
 });
 document.addEventListener("keydown",e=>{ if((e.key==="Enter"||e.key===" ")&&e.target.matches("[role=button][data-act]")){ e.preventDefault(); e.target.click(); } });
-document.addEventListener("submit",e=>{ e.preventDefault(); if(e.target.id==="addReward"){ const n=document.getElementById("rewName").value.trim(), c=Math.max(10,Math.round(Number(document.getElementById("rewCost").value)||0)); if(!n) return; S.rewards.push({id:"r"+uid(),name:n,cost:c}); commit(); } });
+document.addEventListener("submit",e=>{ e.preventDefault();
+  if(e.target.id==="bodyForm"){ const g=id=>{ const v=document.getElementById(id).value.trim(); return v===""?null:Number(v); };
+    const en={d:today(),weight:g("bWeight"),waist:g("bWaist"),push:g("bPush"),pull:g("bPull")};
+    if([en.weight,en.waist,en.push,en.pull].every(v=>v==null||isNaN(v))){ toast("Check-in","Fill in at least one number.","red","x"); return; }
+    S.body=S.body||[]; const prevLast=S.body[S.body.length-1]; const earn=!prevLast||(parseDay(en.d)-parseDay(prevLast.d))/864e5>=6;
+    if(prevLast&&prevLast.d===en.d) S.body[S.body.length-1]=Object.assign(prevLast,Object.fromEntries(Object.entries(en).filter(([k,v])=>v!=null))); else S.body.push(en);
+    if(S.body.length>260) S.body.shift();
+    if(earn&&!(prevLast&&prevLast.d===en.d)){ const x=gain(40); toast("Check-in logged","+"+x+" XP. See you next week.","","stats"); } else toast("Check-in","Updated.","","check");
+    commit(); return; }
+  if(e.target.id==="addReward"){ const n=document.getElementById("rewName").value.trim(), c=Math.max(10,Math.round(Number(document.getElementById("rewCost").value)||0)); if(!n) return; S.rewards.push({id:"r"+uid(),name:n,cost:c}); commit(); } });
 
 // ================= ambient fx =================
 const fx={mode:"home"};

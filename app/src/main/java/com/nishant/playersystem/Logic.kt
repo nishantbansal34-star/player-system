@@ -4,19 +4,23 @@ import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
 import java.time.LocalDate
+import java.time.LocalDateTime
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
 /**
- * The same rules as the app (index.html), for what the widget can do on its own:
- * roll over to a new day and complete a quest.
+ * The same rules as the app (index.html), for what the widget and reminders do on their own:
+ * roll over to a new day and complete a quest. Extras (achievements, weekly dungeon) are
+ * settled by the app the next time it opens.
  */
 object Logic {
-    val QUEST_IDS = listOf("train", "walk", "read", "deep", "water", "disc")
-    private val BASE_XP = mapOf("train" to 30, "walk" to 20, "read" to 20, "deep" to 30, "water" to 15, "disc" to 25)
-
     fun need(level: Int) = 50 + 10 * level
-    fun today(): String = LocalDate.now().toString()
+
+    fun dayStart(s: JSONObject?): Int = s?.optJSONObject("settings")?.optInt("dayStart", 0) ?: 0
+
+    /** The Player's current day, shifted by the "day resets at" setting. */
+    fun today(s: JSONObject?): String = LocalDateTime.now().minusHours(dayStart(s).toLong()).toLocalDate().toString()
 
     fun load(context: Context): JSONObject? {
         val raw = Store.read(context) ?: return null
@@ -26,26 +30,65 @@ object Logic {
 
     private fun save(context: Context, s: JSONObject) = Store.write(context, s.toString())
 
+    /** Today's quest list as the app planned it: [{id,name,detail,xp,icon}]. Index 0 of plan = Sunday. */
+    fun planFor(s: JSONObject, day: String): JSONArray? {
+        val dow = LocalDate.parse(day).dayOfWeek.value % 7
+        return s.optJSONArray("plan")?.optJSONArray(dow)
+    }
+
+    fun ids(plan: JSONArray?): List<String> {
+        val out = ArrayList<String>()
+        if (plan == null) return out
+        for (i in 0 until plan.length()) plan.optJSONObject(i)?.optString("id")?.let { if (it.isNotEmpty()) out.add(it) }
+        return out
+    }
+
+    fun clearAt(s: JSONObject, n: Int): Int {
+        val c = s.optInt("clearAt", 0)
+        return if (c > 0) c else max(1, ceil(n * 2.0 / 3.0).toInt())
+    }
+
     fun rollover(context: Context) {
         val s = load(context) ?: return
         if (rolloverIn(s)) save(context, s)
     }
 
+    private fun rec(s: JSONObject, day: String): JSONObject {
+        val hist = s.optJSONObject("history") ?: JSONObject().also { s.put("history", it) }
+        return hist.optJSONObject(day) ?: JSONObject().put("q", JSONObject()).put("xp", 0).also { hist.put(day, it) }
+    }
+
     /** Mirrors processDays() in the app. Returns true if anything changed. */
     fun rolloverIn(s: JSONObject): Boolean {
-        val t = today()
+        val t = today(s)
         val last = s.optString("lastSeen", t)
         if (last == t) return false
         val start = s.optString("startDate", t)
         val hist = s.optJSONObject("history") ?: JSONObject()
-        var d = try { LocalDate.parse(last) } catch (e: Exception) { LocalDate.now() }
+        val pause = s.optJSONObject("pause")
+        val pauseSince = pause?.optString("since")
+        val prevStreak = s.optInt("streak")
+        var d = try { LocalDate.parse(last) } catch (e: Exception) { LocalDate.parse(t) }
         val end = LocalDate.parse(t)
         var missed = 0
+        var shielded = 0
+        var lastMiss: String? = null
         var guard = 0
         while (d.isBefore(end) && guard < 400) {
             val k = d.toString()
             val h = hist.optJSONObject(k)
-            if (k > start && (h == null || !h.optBoolean("cleared"))) missed++
+            if (k > start && (h == null || !h.optBoolean("cleared"))) {
+                if (pauseSince != null && k >= pauseSince) {
+                    rec(s, k).put("paused", true)
+                } else if (s.optInt("freezes") > 0) {
+                    s.put("freezes", s.optInt("freezes") - 1)
+                    rec(s, k).put("frozen", true)
+                    shielded++
+                } else {
+                    missed++
+                    lastMiss = k
+                }
+            }
             d = d.plusDays(1)
             guard++
         }
@@ -55,25 +98,42 @@ object Logic {
             addNote(s, "shadow", "Trial failed", "The Job Change trial expired. Try again another day.", "red")
         }
         s.put("lastSeen", t)
+        if (shielded > 0) {
+            addNote(s, "loot", "Streak shield used",
+                "$shielded missed day" + (if (shielded > 1) "s were" else " was") + " absorbed. Your streak is safe.", "gold")
+        }
         if (missed > 0) {
+            val existing = s.optJSONObject("penalty")
+            if (existing != null) {
+                existing.put("forDay", lastMiss); existing.put("multi", true)
+            } else {
+                s.put("penalty", JSONObject().put("since", t).put("forDay", lastMiss).put("prevStreak", prevStreak).put("multi", missed > 1))
+            }
             s.put("streak", 0)
-            if (s.optJSONObject("penalty") == null) s.put("penalty", JSONObject().put("since", t))
             val body = "You failed the daily quest" + (if (missed > 1) " on $missed days" else "") +
-                ". Survive the penalty to remove Weakened."
+                ". Survive the penalty to remove Weakened." + (if (missed == 1) " Forgot to log? You can log yesterday until noon." else "")
             addNote(s, "penalty", "Penalty issued", body, "red")
         }
-        addNote(s, "quest", "System notice", "Your daily quests have been generated.", "")
+        addNote(s, "quest", "System notice",
+            if (pause != null) "Pause mode is on. No penalties while you're away." else "Your daily quests have been generated.", "")
         return true
     }
 
-    /** Mirrors completeQuest() in the app. */
+    /** Mirrors completeQuest() in the app for today. */
     fun complete(context: Context, id: String?) {
-        if (id == null || id !in QUEST_IDS) return
+        if (id.isNullOrEmpty()) return
         val s = load(context) ?: return
         rolloverIn(s)
-        val t = today()
-        val hist = s.optJSONObject("history") ?: JSONObject().also { s.put("history", it) }
-        val h = hist.optJSONObject(t) ?: JSONObject().put("q", JSONObject()).put("xp", 0).also { hist.put(t, it) }
+        val t = today(s)
+        val plan = planFor(s, t)
+        val ids = ids(plan)
+        if (id !in ids) { save(context, s); return }
+        var baseXp = 20
+        for (i in 0 until (plan?.length() ?: 0)) {
+            val item = plan!!.optJSONObject(i)
+            if (item != null && item.optString("id") == id) baseXp = item.optInt("xp", 20)
+        }
+        val h = rec(s, t)
         val q = h.optJSONObject("q") ?: JSONObject().also { h.put("q", it) }
         if (q.optBoolean(id)) { save(context, s); return }
 
@@ -81,11 +141,10 @@ object Logic {
         val counts = s.optJSONObject("counts") ?: JSONObject().also { s.put("counts", it) }
         counts.put(id, counts.optInt(id) + 1)
         s.put("gold", s.optInt("gold") + 10)
-        gain(s, h, BASE_XP[id] ?: 20)
+        gain(s, h, baseXp)
 
-        val done = QUEST_IDS.count { q.optBoolean(it) }
-        val clearAt = s.optInt("clearAt", 4)
-        if (done >= clearAt && !h.optBoolean("cleared")) {
+        val done = ids.count { q.optBoolean(it) }
+        if (done >= clearAt(s, ids.size) && !h.optBoolean("cleared")) {
             h.put("cleared", true)
             h.put("loot", true)
             val streak = s.optInt("streak") + 1
@@ -93,10 +152,14 @@ object Logic {
             s.put("totalDays", s.optInt("totalDays") + 1)
             s.put("bestStreak", max(s.optInt("bestStreak"), streak))
             s.put("statPoints", s.optInt("statPoints") + 3)
+            if (streak % 7 == 0 && s.optInt("freezes") < 2) {
+                s.put("freezes", s.optInt("freezes") + 1)
+                addNote(s, "loot", "Streak shield earned", "A shield will absorb one missed day. You hold ${s.optInt("freezes")}.", "gold")
+            }
             gain(s, h, 40)
             addNote(s, "quest", "Daily quest cleared", "+3 stat points. A loot box is waiting in Quests.", "")
         }
-        if (done >= QUEST_IDS.size && !h.optBoolean("perfect")) {
+        if (done >= ids.size && ids.isNotEmpty() && !h.optBoolean("perfect")) {
             h.put("perfect", true)
             s.put("perfectDays", s.optInt("perfectDays") + 1)
             gain(s, h, 30)
@@ -120,13 +183,18 @@ object Logic {
         val from = level
         var points = s.optInt("statPoints")
         h.put("xp", h.optInt("xp") + amt)
-        while (level < 100 && xp >= need(level)) { xp -= need(level); level++; points += 5 }
-        if (level >= 100) xp = 0
+        s.put("totalXp", s.optLong("totalXp") + amt)
+        var guard = 0
+        while (xp >= need(level) && guard < 1000) { xp -= need(level); level++; points += 5; guard++ }
         s.put("level", level); s.put("xp", xp); s.put("statPoints", points)
+        if (level >= 100 && s.optString("job") != "Shadow Monarch") {
+            s.put("job", "Shadow Monarch")
+            addNote(s, "level", "Job changed", "You have become the Shadow Monarch.", "violet")
+        }
         if (level > from) {
             val prev = s.optJSONObject("pendingLevelUp")
-            val start = prev?.optInt("from", from) ?: from
-            s.put("pendingLevelUp", JSONObject().put("from", start).put("to", level))
+            val startLv = prev?.optInt("from", from) ?: from
+            s.put("pendingLevelUp", JSONObject().put("from", startLv).put("to", level))
             addNote(s, "level", "Level up", "You reached Level $level. +${5 * (level - from)} stat points.", "")
         }
     }
