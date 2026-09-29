@@ -43,6 +43,16 @@ class Bridge(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun share(text: String) {
+        activity.runOnUiThread {
+            val send = android.content.Intent(android.content.Intent.ACTION_SEND)
+                .setType("text/plain")
+                .putExtra(android.content.Intent.EXTRA_TEXT, text)
+            try { activity.startActivity(android.content.Intent.createChooser(send, "Invite a friend")) } catch (e: Exception) { }
+        }
+    }
+
+    @JavascriptInterface
     fun listSnapshots(): String = JSONArray(Store.listSnapshots(activity)).toString()
 
     @JavascriptInterface

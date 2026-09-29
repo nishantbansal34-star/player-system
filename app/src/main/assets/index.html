@@ -270,6 +270,16 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .toast.streak{border-color:rgba(255,140,60,.7);box-shadow:0 0 24px rgba(255,120,40,.35);background:linear-gradient(110deg,rgba(110,40,6,.97),rgba(34,12,4,.97))}
 .toast.streak .ti{color:#ffae57;border-color:rgba(255,160,80,.5);background:radial-gradient(circle,rgba(255,120,40,.45),transparent 70%)} .toast.streak b{color:#ffc27a}
 .stat-tile .k{font-size:10.5px;letter-spacing:.12em}
+.code-big{font-family:var(--f-display);font-weight:700;font-size:34px;letter-spacing:.3em;text-align:center;color:#fff;text-shadow:0 0 18px rgba(90,150,255,.9);padding-left:.3em}
+.lb-row{display:grid;grid-template-columns:28px 36px 1fr auto;gap:10px;align-items:center;padding:11px 6px;border-bottom:1px solid rgba(100,140,255,.1);width:100%;text-align:left}
+.lb-row:last-child{border-bottom:0}
+.lb-row.me{background:linear-gradient(90deg,rgba(61,123,255,.18),transparent);border-radius:10px}
+.lb-pos{font-family:var(--f-ui);font-weight:700;font-size:16px;text-align:center;color:var(--dim)}
+.lb-pos.p1{color:#ffd57a;text-shadow:0 0 10px rgba(245,187,76,.8)} .lb-pos.p2{color:#dfe6f5} .lb-pos.p3{color:#e0a15e}
+.lb-av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--f-display);font-weight:700;color:#eaf3ff;background:radial-gradient(circle at 50% 35%,#23408f,#050a1c);border:1.5px solid rgba(120,170,255,.6);box-shadow:0 0 10px rgba(61,123,255,.4)}
+.lb-val{font-family:var(--f-ui);font-weight:700;font-size:17px;text-align:right}
+.lb-sub{font-size:11.5px;color:var(--dim)}
+.chip-ok{color:#3ddc97} .chip-mid{color:#9cc3ff} .chip-off{color:var(--faint)}
 /* heatmap + charts */
 .heat{display:flex;gap:3px;width:max-content}
 .heat span{display:flex;flex-direction:column;gap:3px}
@@ -428,6 +438,7 @@ const ACH=[
   {id:"necro",name:"Necromancer",rar:"legendary",icon:"ghost",desc:"Complete the Job Change.",cond:s=>s.job!=="None"},
   {id:"demon",name:"Demon Hunter",rar:"legendary",icon:"shield",desc:"Reach Level 50.",cond:s=>s.level>=50},
   {id:"monarch",name:"Shadow Monarch",rar:"mythic",icon:"crown",desc:"Reach Level 100.",cond:s=>s.level>=100},
+  {id:"party",name:"Party Formed",rar:"rare",icon:"users",desc:"Add your first friend.",cond:s=>(s.flags.friends||0)>=1},
   {id:"week",name:"Consistent",rar:"common",icon:"flame",desc:"Reach a 7-day streak.",cond:s=>s.bestStreak>=7},
   {id:"measured",name:"Measured",rar:"common",icon:"stats",desc:"Log your first body check-in.",cond:s=>(s.body||[]).length>=1},
   {id:"raider",name:"Dungeon Raider",rar:"rare",icon:"shield",desc:"Clear 4 Weekly Dungeons.",cond:s=>Object.keys(s.weekly||{}).length>=4},
@@ -486,7 +497,10 @@ const I={
   stats:'<path d="M5 20v-7M10 20V6M15 20v-9M20 20V3"/>',
   bag:'<path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/>',
   potion:'<path d="M9.5 3h5M10.5 3v5.2L5.6 16.4A3 3 0 0 0 8.2 21h7.6a3 3 0 0 0 2.6-4.6L13.5 8.2V3"/><path d="M7.5 15h9"/>',
-  refresh:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>'
+  refresh:'<path d="M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.8 3.4-5.5 6.5-5.5s5.7 1.7 6.5 5.5"/><circle cx="17" cy="9" r="2.8"/><path d="M16 14.6c2.8 0 4.8 1.5 5.5 4.6"/>',
+  share:'<circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 10.8l7.6-4.4M8.2 13.2l7.6 4.4"/>',
+  copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>'
 };
 const ico=(n,cls,st)=>`<svg class="ico ${cls||""}" ${st?`style="${st}"`:""} viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[n]||""}</svg>`;
 
@@ -715,7 +729,7 @@ function reconcile(){
 // ================= persistence =================
 let saving=false, dirty=false, saveTimer=null;
 function serial(){ S.plan=widgetPlan(); S.mult=mult(); S.smult=1+Math.min(.3,activeShadows()*.03); S.clearAt=clearAt(); return JSON.stringify(S); }
-function commit(now){ reconcile(); render(); dirty=true; clearTimeout(saveTimer); if(window.Android) flush(); else saveTimer=setTimeout(flush,now?50:600); }
+function commit(now){ reconcile(); render(); netSchedule(); dirty=true; clearTimeout(saveTimer); if(window.Android) flush(); else saveTimer=setTimeout(flush,now?50:600); }
 async function flush(){
   if(saving){ saveTimer=setTimeout(flush,300); return; }
   if(!dirty||!S) return; dirty=false; saving=true;
@@ -739,6 +753,7 @@ async function boot(){
   else render();
   setInterval(tick,1000);
   setTimeout(()=>checkUpdate(false),2500);
+  setTimeout(()=>{ if(S&&S.net) netBoard(); },3000);
   setTimeout(()=>{ const sp=document.getElementById("splash"); document.body.classList.remove("splashing"); if(sp){ sp.classList.add("gone"); setTimeout(()=>{ sp.remove(); setScene(); },650); } },1500);
 }
 window.__imported=function(json){ try{ const d=JSON.parse(json); if(!d||!d.level) throw 0; S=migrate(d); processDays(); toast("Backup","Progress restored from file.","","check"); commit(); }catch(e){ toast("Backup","That file isn't a Player System backup.","red","x"); } };
@@ -751,7 +766,7 @@ async function checkUpdate(manual){
     else if(manual) toast("Update","You're on the latest build.","","check");
   }catch(e){ if(manual) toast("Update","Couldn't check. Are you online?","red","x"); }
 }
-window.__onResume=function(){ if(!window.Android) return; try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } } }catch(e){} };
+window.__onResume=function(){ if(!window.Android) return; setTimeout(()=>{ if(S&&S.net) netBoard(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } } }catch(e){} };
 window.__back=function(){ if(document.getElementById("ov").innerHTML){ closeOv(); return true; } if(screen==="settings"&&ui.setPage){ ui.setPage=null; render(); return true; } if(hist.length){ screen=hist.pop(); render(); return true; } if(screen!=="home"){ screen="home"; render(); return true; } return false; };
 function tick(){
   if(!S) return;
@@ -762,7 +777,7 @@ function tick(){
 function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH(),0,0,0); if(m<=n) m.setDate(m.getDate()+1); const s=Math.floor((m-n)/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
 
 // ================= navigation =================
-function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
+function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
 function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex"}[sc]||"calm"; }
 function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=screen==="army"?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
@@ -821,6 +836,7 @@ function vHome(){
       <div class="progress-line" style="margin-top:12px"><span>${S.pause?"Pause mode · no penalties":h.cleared?(h.perfect?"Perfect clear":"Cleared · "+(N-n)+" to perfect"):"Clear "+Math.max(0,CA-n)+" more to stay safe"}</span><span>Resets in <span class="num" id="clock">${untilMidnight()}</span></span></div>
       ${h.cleared&&!h.lootOpened?`<button class="btn wide" style="margin-top:12px" data-act="loot">${ico("chest")}Claim rewards</button>`:""}
     </section>
+    ${friendsCard()}
     <section class="card quote-card"><span class="qm">“</span><span>${esc(q)}</span></section>
     ${checkinDue()?`<section class="card" data-act="go" data-to="body" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("stats","","color:#8fc1ff")}<div><div class="label">Weekly check-in</div><div class="small">Log your weight and max reps to track real progress.</div></div></section>`:""}
     <div class="pills">
@@ -1099,6 +1115,88 @@ function vSettingsFull(){
   const sec=(html.match(re)||[]).join("");
   return `${topbar(TITLES[ui.setPage]||"Settings","",true)}<div class="stack" style="margin-top:12px">${sec}</div>`;
 }
+// ================= friends network (Android app only) =================
+const NET={url:"https://csbxmdsquacohndqxslh.supabase.co/rest/v1/rpc/",key:"sb_publishable_iDh6DvN76tEwcq-0ucry3w_coNKAtOQ",apk:"https://github.com/"+REPO+"/releases/latest/download/PlayerSystem.apk"};
+const netOK=()=>!!window.Android;
+async function rpc(fn,body){
+  const r=await fetch(NET.url+fn,{method:"POST",headers:{"apikey":NET.key,"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const t=await r.text(); if(!r.ok){ let m="network"; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
+  return t?JSON.parse(t):null;
+}
+const NET_ERR={code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"Your online ID was rejected. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
+const netErr=e=>NET_ERR[e&&e.message]||(e&&/fetch|network/i.test(e.message)?NET_ERR.network:"Something went wrong: "+(e&&e.message));
+function netPayload(){
+  const t=today(), wk=weekKey(t); let wxp=0; for(let i=0;i<7;i++){ const h=S.history[addDay(wk,i)]; if(h) wxp+=h.xp||0; }
+  const h=S.history[t]||{q:{}};
+  return {name:S.name,level:S.level,rank:rankOf(S.level).r,title:S.title,streak:S.streak,best_streak:S.bestStreak,weekly_xp:wxp,week:wk,today_done:doneCount(h),today_total:Q().length,today_date:t,today_cleared:!!h.cleared,total_xp:S.totalXp||0};
+}
+let netTimer=null, netLast="";
+function netSchedule(delay){ if(!netOK()||!S||!S.net) return; clearTimeout(netTimer); netTimer=setTimeout(netSync,delay==null?6000:delay); }
+async function netSync(){
+  if(!netOK()||!S||!S.net) return;
+  const p=netPayload(), key=JSON.stringify(p); if(key===netLast) return;
+  try{ await rpc("ps_sync",{p_id:S.net.id,p_secret:S.net.secret,p}); netLast=key; }catch(e){ if(e.message==="not_authorized") ui.netErr=netErr(e); }
+}
+async function netBoard(){
+  if(!netOK()||!S||!S.net) return;
+  ui.boardBusy=true; if(screen==="friends") render();
+  try{ await netSync(); const b=await rpc("ps_board",{p_id:S.net.id,p_secret:S.net.secret}); ui.board=b||[]; ui.boardAt=Date.now(); ui.netErr=null;
+    const n=ui.board.filter(x=>!x.me).length; if((S.flags.friends||0)!==n){ S.flags.friends=n; commit(); } }
+  catch(e){ ui.netErr=netErr(e); }
+  ui.boardBusy=false; if(screen==="friends"||screen==="home") render();
+}
+function initial(n){ return esc(String(n||"?").trim().charAt(0).toUpperCase()||"?"); }
+function boardSorted(){
+  const t=today(), wk=weekKey(t), tab=ui.boardTab||"weekly";
+  const val=x=>tab==="level"?x.level*1e6+(x.total_xp||0)/1e3:tab==="streak"?x.streak:(x.week===wk?x.weekly_xp:0);
+  return (ui.board||[]).slice().sort((a,b)=>val(b)-val(a)||b.level-a.level);
+}
+function boardRow(x,i){
+  const t=today(), wk=weekKey(t), tab=ui.boardTab||"weekly";
+  const v=tab==="level"?"Lv "+x.level:tab==="streak"?x.streak+"d":fmt(x.week===wk?x.weekly_xp:0)+" XP";
+  const todayTxt=x.today_date===t?(x.today_cleared?`<span class="chip-ok">cleared today</span>`:`<span class="chip-mid">${x.today_done}/${x.today_total} today</span>`):`<span class="chip-off">not active today</span>`;
+  return `<button class="lb-row${x.me?" me":""}" data-act="friend" data-id="${esc(x.id)}"><span class="lb-pos p${i+1}">${i===0?ico("crown","","width:18px;height:18px;margin:auto"):i+1}</span><span class="lb-av">${initial(x.name)}</span>
+    <span style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}${x.me?" (you)":""}</div><div class="lb-sub">${esc(x.rank)}-Rank · ${x.streak}-day streak · ${todayTxt}</div></span>
+    <span class="lb-val num">${v}</span></button>`;
+}
+function vFriends(){
+  if(!netOK()) return `${topbar("Friends","",true)}<section class="card" style="margin-top:12px"><p style="margin:0">Friends and leaderboards work in the Android app. Install it from the Settings → About page link, then open Friends there.</p></section>`;
+  if(!S.net) return `${topbar("Friends","Level up together.",true)}
+    <div class="stack">
+    <section class="card hot" style="text-align:center"><div style="display:flex;justify-content:center;gap:6px;margin-bottom:10px">${["E","C","A","S","SS"].map(r=>rankBadge(r,44)).join("")}</div>
+      <h3 style="font-family:var(--f-display);letter-spacing:.08em;margin:4px 0 6px">Join the Hunter network</h3>
+      <p class="small muted" style="margin:0 0 14px">Get your own hunter code, add friends with theirs, and compete on a live leaderboard.</p>
+      <button class="btn wide" data-act="netjoin" ${ui.boardBusy?"disabled":""}>${ui.boardBusy?"Connecting…":"Go online"}</button></section>
+    <section class="card"><div class="label">What friends can see</div><p class="small" style="margin:6px 0 0">Your name, level, rank, title, streak, this week's XP and how many quests you've done today. Your history, body check-ins and everything else stay on this phone.</p></section>
+    ${ui.netErr?`<p class="small" style="color:#ff9aaa;margin:0">${esc(ui.netErr)}</p>`:""}
+    </div>`;
+  const rows=boardSorted(); const friends=rows.filter(x=>!x.me).length; const tab=ui.boardTab||"weekly";
+  const sel=ui.friendSel&&rows.find(x=>x.id===ui.friendSel&&!x.me);
+  return `${topbar("Friends","Hunter network",true)}
+  <div class="stack">
+  <section class="card hot"><div class="label center" style="color:#9cc3ff">Your hunter code</div><div class="code-big num" style="margin:6px 0 10px">${esc(S.net.code)}</div>
+    <div class="form-row" style="justify-content:center"><button class="btn sm" data-act="netshare">${ico("share","","width:16px;height:16px")}Invite a friend</button><button class="btn ghost sm" data-act="netcopy">${ico("copy","","width:16px;height:16px")}Copy code</button></div></section>
+  <form class="card form-row" id="addFriend" style="align-items:center"><input id="friendCode" placeholder="Friend's code, e.g. Q38LT6" maxlength="6" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em"><button class="btn sm" type="submit">Add</button></form>
+  ${ui.netErr?`<p class="small" style="color:#ff9aaa;margin:0 4px">${esc(ui.netErr)}</p>`:""}
+  <section class="card">
+    <div class="seg" style="margin-bottom:8px">${[["weekly","This week"],["level","Level"],["streak","Streak"]].map(t=>`<button class="${tab===t[0]?"on":""}" data-act="boardtab" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
+    ${rows.length?rows.map(boardRow).join(""):`<p class="empty">${ui.boardBusy?"Loading the board…":"Pull the board to load it."}</p>`}
+    ${friends===0&&rows.length?`<p class="tiny muted center" style="margin:10px 0 0">It's just you so far. Send your code to a friend to start competing.</p>`:""}
+    <div class="progress-line" style="margin-top:10px"><span>${ui.boardAt?"Updated "+new Date(ui.boardAt).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"}):""}</span><button class="tiny" style="color:#9cc3ff;font-family:var(--f-ui);letter-spacing:.1em" data-act="netrefresh">${ui.boardBusy?"REFRESHING…":"REFRESH"}</button></div>
+  </section>
+  ${sel?`<section class="card"><div style="display:flex;gap:12px;align-items:center">${rankBadge(sel.rank,54)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:17px">${esc(sel.name)}</div><div class="tiny muted">${esc(sel.title||"No title")} · Level ${sel.level} · best streak ${sel.best_streak}d</div><div class="tiny muted">Total XP ${fmt(sel.total_xp||0)}</div></div></div>
+    <div class="form-row" style="margin-top:10px"><button class="btn red sm" data-act="unfriend" data-id="${esc(sel.id)}">${ui.pendingUnfriend===sel.id?"Tap again to remove":"Remove friend"}</button><button class="btn ghost sm" data-act="friend" data-id="">Close</button></div></section>`:""}
+  <p class="tiny muted center" style="margin:0">Your stats update automatically a few seconds after you complete quests.</p>
+  <button class="tiny muted" style="margin:0 auto;display:block;font-family:var(--f-ui);letter-spacing:.1em" data-act="netleave">${ui.pendingLeave?"TAP AGAIN TO LEAVE AND DELETE YOUR ONLINE PROFILE":"LEAVE THE NETWORK"}</button>
+  </div>`;
+}
+function friendsCard(){
+  if(!netOK()) return "";
+  if(!S.net) return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("users","","color:#8fc1ff;width:26px;height:26px")}<div style="flex:1"><div class="label">Play with friends</div><div class="small">Add friends with a hunter code and compete on a live leaderboard.</div></div></section>`;
+  const rows=boardSorted().slice(0,3);
+  return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0"><div class="sec-h" style="margin-bottom:4px"><h2>This week's leaderboard</h2><span class="tiny muted" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</span></div>
+    ${rows.length?rows.map(boardRow).join(""):`<p class="tiny muted" style="margin:6px 0">Loading…</p>`}</section>`;
+}
 function vProfile(){
   const pct=S.xp/need(S.level), r=rankOf(S.level), totalQuests=Object.values(S.counts||{}).reduce((a,b)=>a+b,0);
   const q=QUOTES[(parseDay(today()).getDate()+2)%QUOTES.length];
@@ -1201,7 +1299,7 @@ function openLoot(bonus){
   commit();
 }
 function ovMenu(){
-  const items=[["status","user","Status"],["quests","quests","Quests"],["inventory","bag","Inventory"],["stats","stats","Stats"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"],["body","fist","Body"],["profile","user","Profile"]];
+  const items=[["status","user","Status"],["quests","quests","Quests"],["inventory","bag","Inventory"],["stats","stats","Stats"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"],["friends","users","Friends"],["profile","user","Profile"]];
   const cx=170, cy=178, R=136;
   document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg"><div class="radial">
     <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 340 410" aria-hidden="true"><circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(110,160,255,.25)" stroke-dasharray="2 6"/><circle cx="${cx}" cy="${cy}" r="${R-40}" fill="none" stroke="rgba(110,160,255,.12)"/></svg>
@@ -1223,7 +1321,7 @@ function render(){
   nav.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",tabOf[screen]===b.dataset.nav||(!tabOf[screen]&&b.dataset.nav==="menu"));
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
-  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile}[screen]||vHome;
+  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends}[screen]||vHome;
   app.innerHTML=V();
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
@@ -1241,6 +1339,14 @@ document.addEventListener("click",e=>{
     case "accept": { const nm=(document.getElementById("onbName")||{}).value; S=fresh(); if(nm&&nm.trim()) S.name=nm.trim().slice(0,24); } note("quest","System notice","Your daily quests have been generated."); log("Accepted the System."); checkAch(true); commit(); toast("System","Welcome, Player. Your daily quests have been generated.","","bolt"); break;
     case "go": if(b.dataset.to==="allocate") ui.alloc=null; go(b.dataset.to); break;
     case "back": window.__back(); break;
+    case "netjoin": (async()=>{ ui.boardBusy=true; ui.netErr=null; render(); try{ const r=await rpc("ps_register",{p_name:S.name}); S.net={id:r.id,secret:r.secret,code:r.code}; commit(); await netBoard(); toast("Hunter network","You're online · Your code is "+r.code,"","users"); }catch(e){ ui.netErr=netErr(e); } ui.boardBusy=false; render(); })(); break;
+    case "netrefresh": netBoard(); break;
+    case "boardtab": ui.boardTab=b.dataset.t; render(); break;
+    case "friend": ui.friendSel=id||null; ui.pendingUnfriend=null; render(); break;
+    case "netcopy": { const c=S.net&&S.net.code; if(!c) break; try{ navigator.clipboard.writeText(c).then(()=>toast("Copied","Hunter code "+c,"","copy"),()=>toast("Your code",c,"","copy")); }catch(e){ toast("Your code",c,"","copy"); } break; }
+    case "netshare": { const c=S.net&&S.net.code; if(!c) break; const txt="Join me in the Player System, a Solo Leveling-style habit app. Install it: "+NET.apk+" — then open More → Friends and add my hunter code: "+c; if(hasA("share")) Android.share(txt); else { try{ navigator.clipboard.writeText(txt); toast("Invite copied","Paste it into WhatsApp","","share"); }catch(e){} } break; }
+    case "unfriend": if(ui.pendingUnfriend!==id){ ui.pendingUnfriend=id; render(); break; } (async()=>{ try{ await rpc("ps_remove_friend",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); ui.friendSel=null; ui.pendingUnfriend=null; await netBoard(); toast("Friends","Friend removed.","","users"); }catch(e){ ui.netErr=netErr(e); render(); } })(); break;
+    case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
     case "setpage": ui.setPage=b.dataset.t; ui.editQ=null; render(); window.scrollTo(0,0); break;
     case "notes": go("notes"); break;
     case "done": completeQuest(id,b.dataset.back&&canBackfill()?addDay(today(),-1):null); break;
@@ -1310,6 +1416,8 @@ document.addEventListener("submit",e=>{ e.preventDefault();
     if(S.body.length>260) S.body.shift();
     if(earn&&!(prevLast&&prevLast.d===en.d)){ const x=gain(40); toast("Check-in logged","+"+x+" XP. See you next week.","","stats"); } else toast("Check-in","Updated.","","check");
     commit(); return; }
+  if(e.target.id==="addFriend"){ const code=document.getElementById("friendCode").value.trim().toUpperCase(); if(code.length!==6){ ui.netErr="Hunter codes have 6 letters and numbers."; render(); return; }
+    (async()=>{ try{ const r=await rpc("ps_add_friend",{p_id:S.net.id,p_secret:S.net.secret,p_code:code}); ui.netErr=null; toast("Friend added",(r&&r.name||"Hunter")+" joined your party","","users"); await netBoard(); }catch(err){ ui.netErr=netErr(err); render(); } })(); return; }
   if(e.target.id==="addReward"){ const n=document.getElementById("rewName").value.trim(), c=Math.max(10,Math.round(Number(document.getElementById("rewCost").value)||0)); if(!n) return; S.rewards.push({id:"r"+uid(),name:n,cost:c}); commit(); } });
 
 // ================= ambient scenes =================
