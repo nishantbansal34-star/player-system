@@ -60,6 +60,8 @@ class MainActivity : Activity() {
         setContentView(root)
         web.loadUrl("file:///android_asset/index.html")
         Reminders.schedule(this)
+        val remindOn = Logic.load(this)?.optJSONObject("settings")?.optBoolean("remindOn", true) ?: true
+        if (remindOn) askNotificationPermission()
     }
 
     override fun onResume() {
