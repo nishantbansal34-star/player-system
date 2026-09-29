@@ -208,7 +208,9 @@ object Logic {
     }
 
     fun rankOf(level: Int): String = when {
-        level >= 100 -> "MONARCH"
+        level >= 200 -> "SSS-RANK"
+        level >= 150 -> "S+ RANK"
+        level >= 100 -> "SS-RANK"
         level >= 80 -> "S-RANK"
         level >= 60 -> "A-RANK"
         level >= 40 -> "B-RANK"
