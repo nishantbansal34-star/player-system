@@ -72,6 +72,10 @@ class MainActivity : Activity() {
 
     override fun onPause() {
         super.onPause()
+        // Leaving the app with the screen on counts as fleeing an instant dungeon; screen-off does not.
+        val pm = getSystemService(POWER_SERVICE) as android.os.PowerManager
+        val interactive = pm.isInteractive
+        web.evaluateJavascript("window.__appLeft && window.__appLeft($interactive)", null)
         SystemWidget.refresh(this)
     }
 

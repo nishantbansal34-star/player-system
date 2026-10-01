@@ -53,6 +53,12 @@ class Bridge(private val activity: MainActivity) {
     }
 
     @JavascriptInterface
+    fun scheduleRunEnd(at: Double) { Reminders.scheduleRunEnd(activity, at.toLong()) }
+
+    @JavascriptInterface
+    fun cancelRunEnd() { Reminders.cancelRunEnd(activity) }
+
+    @JavascriptInterface
     fun listSnapshots(): String = JSONArray(Store.listSnapshots(activity)).toString()
 
     @JavascriptInterface

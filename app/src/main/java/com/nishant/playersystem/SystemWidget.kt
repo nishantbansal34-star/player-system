@@ -145,8 +145,10 @@ class SystemWidget : AppWidgetProvider() {
             val cleared = h?.optBoolean("cleared") == true
             val lootWaiting = cleared && h?.optBoolean("lootOpened") != true
             val points = s.optInt("statPoints")
+            val urgent = Logic.urgentNow(s)
             val footer = when {
                 count == 0 -> "Open the app to load today's quests"
+                urgent != null -> "URGENT: ${urgent.first} · ${urgent.second / 60000} min left"
                 penalty -> "PENALTY ACTIVE · XP halved · open the app"
                 s.optJSONObject("pendingLevelUp") != null -> "LEVEL UP! Open the app to see it"
                 lootWaiting -> "DAILY QUEST CLEARED · loot box ready"
@@ -157,7 +159,7 @@ class SystemWidget : AppWidgetProvider() {
                 else -> "Clear ${clearAt - done} more to avoid the penalty"
             }
             v.setTextViewText(R.id.footer, footer)
-            v.setInt(R.id.footer, "setBackgroundResource", if (penalty) R.drawable.banner_red else R.drawable.banner_blue)
+            v.setInt(R.id.footer, "setBackgroundResource", if (penalty || urgent != null) R.drawable.banner_red else R.drawable.banner_blue)
             return v
         }
 

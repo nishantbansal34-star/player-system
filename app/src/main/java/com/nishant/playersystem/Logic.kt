@@ -78,7 +78,7 @@ object Logic {
             val k = d.toString()
             val h = hist.optJSONObject(k)
             if (k > start && (h == null || !h.optBoolean("cleared"))) {
-                if (pauseSince != null && k >= pauseSince) {
+                if ((pauseSince != null && k >= pauseSince) || (h != null && h.optBoolean("paused"))) {
                     rec(s, k).put("paused", true)
                 } else if (s.optInt("freezes") > 0) {
                     s.put("freezes", s.optInt("freezes") - 1)
@@ -138,6 +138,13 @@ object Logic {
         if (q.optBoolean(id)) { save(context, s); return }
 
         q.put(id, true)
+        val fx = h.optJSONObject("fx")
+        if (fx != null && fx.optDouble("bloodlust", 0.0) > 0 && !fx.optBoolean("bloodUsed")) {
+            baseXp = (baseXp * fx.optDouble("bloodlust", 1.0)).roundToInt()
+            fx.put("bloodUsed", true)
+        }
+        val mpMax = s.optInt("mpMax", 100)
+        s.put("mp", minOf(mpMax, s.optInt("mp") + s.optInt("mpq", 10)))
         val counts = s.optJSONObject("counts") ?: JSONObject().also { s.put("counts", it) }
         counts.put(id, counts.optInt(id) + 1)
         s.put("gold", s.optInt("gold") + 10)
@@ -147,12 +154,13 @@ object Logic {
         if (done >= clearAt(s, ids.size) && !h.optBoolean("cleared")) {
             h.put("cleared", true)
             h.put("loot", true)
+            s.put("mp", s.optInt("mpMax", 100))
             val streak = s.optInt("streak") + 1
             s.put("streak", streak)
             s.put("totalDays", s.optInt("totalDays") + 1)
             s.put("bestStreak", max(s.optInt("bestStreak"), streak))
             s.put("statPoints", s.optInt("statPoints") + 3)
-            if (streak % 7 == 0 && s.optInt("freezes") < 2) {
+            if (streak % 7 == 0 && s.optInt("freezes") < s.optInt("maxShields", 2)) {
                 s.put("freezes", s.optInt("freezes") + 1)
                 addNote(s, "loot", "Streak shield earned", "A shield will absorb one missed day. You hold ${s.optInt("freezes")}.", "gold")
             }
@@ -176,7 +184,8 @@ object Logic {
 
     private fun gain(s: JSONObject, h: JSONObject, base: Int) {
         val shadowMult = s.optDouble("smult", 1.0).let { if (it.isNaN()) 1.0 else it }
-        val mult = shadowMult * (if (s.optJSONObject("penalty") != null) 0.5 else 1.0)
+        val authority = h.optJSONObject("fx")?.optBoolean("authority") == true
+        val mult = shadowMult * (if (s.optJSONObject("penalty") != null && !authority) 0.5 else 1.0)
         val amt = (base * mult).roundToInt()
         var level = s.optInt("level", 1)
         var xp = s.optInt("xp") + amt
@@ -205,6 +214,30 @@ object Logic {
         arr.put(JSONObject().put("t", System.currentTimeMillis()).put("type", type).put("title", title).put("body", body).put("kind", kind))
         for (i in 0 until minOf(old.length(), 49)) arr.put(old.get(i))
         s.put("notes", arr)
+    }
+
+    /** Today's urgent quest if it is live right now: (text, millis left). */
+    fun urgentNow(s: JSONObject): Pair<String, Long>? {
+        if (s.optJSONObject("pause") != null) return null
+        val u = s.optJSONObject("urgent")?.optJSONObject(today(s)) ?: return null
+        if (u.optBoolean("done") || u.optBoolean("missed")) return null
+        val at = u.optLong("at"); val dur = u.optLong("dur", 3600000L); val now = System.currentTimeMillis()
+        return if (now >= at - 120000 && now < at + dur) Pair(u.optString("text"), at + dur - now) else null
+    }
+
+    /** The next urgent quest start time in the future, or null. */
+    fun nextUrgentAt(s: JSONObject): Long? {
+        val urg = s.optJSONObject("urgent") ?: return null
+        val now = System.currentTimeMillis()
+        var best: Long? = null
+        val keys = urg.keys()
+        while (keys.hasNext()) {
+            val u = urg.optJSONObject(keys.next()) ?: continue
+            if (u.optBoolean("done") || u.optBoolean("missed")) continue
+            val at = u.optLong("at")
+            if (at > now && (best == null || at < best)) best = at
+        }
+        return best
     }
 
     fun rankOf(level: Int): String = when {

@@ -280,6 +280,24 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .lb-val{font-family:var(--f-ui);font-weight:700;font-size:17px;text-align:right}
 .lb-sub{font-size:11.5px;color:var(--dim)}
 .chip-ok{color:#3ddc97} .chip-mid{color:#9cc3ff} .chip-off{color:var(--faint)}
+.urgent-card{border-color:rgba(255,79,102,.6);background:linear-gradient(120deg,rgba(110,14,34,.75),rgba(30,8,40,.8));box-shadow:0 0 26px rgba(255,79,102,.3);animation:upulse 2s ease-in-out infinite}
+@keyframes upulse{50%{box-shadow:0 0 40px rgba(255,79,102,.55)}}
+.urgent-card .label{color:#ff9aaa}
+.mpbar>i{background:linear-gradient(90deg,#5a2fd6,#b48cff);box-shadow:0 0 10px rgba(154,102,255,.9)}
+.skill{display:grid;grid-template-columns:52px 1fr;gap:12px;padding:14px}
+.skill .si{width:52px;height:52px;border-radius:14px;display:grid;place-items:center;border:1px solid rgba(154,102,255,.5);background:radial-gradient(circle,rgba(154,102,255,.35),rgba(10,6,30,.9) 75%);color:#d7c4ff}
+.skill .si .ico{width:28px;height:28px;filter:drop-shadow(0 0 7px #9a66ff)}
+.skill.locked{opacity:.55}.skill.locked .si{filter:grayscale(.7)}
+.skill .nm{font-family:var(--f-ui);font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.dg{display:grid;grid-template-columns:64px 1fr auto;gap:12px;align-items:center;padding:14px}
+.run-ring{position:relative;width:260px;height:260px;margin:10px auto}
+.run-ring .ring-center .n{font-size:54px}
+.tower{display:flex;flex-direction:column;gap:6px}
+.floor{display:grid;grid-template-columns:54px 1fr auto;gap:10px;align-items:center;padding:10px 12px;border-radius:12px;border:1px solid rgba(154,102,255,.2);background:rgba(20,10,44,.5)}
+.floor.cur{border-color:#b08bff;box-shadow:0 0 18px rgba(154,102,255,.5);background:linear-gradient(90deg,rgba(90,50,200,.45),rgba(20,10,44,.6))}
+.floor.done{opacity:.5}
+.floor.boss{border-color:rgba(255,79,102,.55);background:linear-gradient(90deg,rgba(90,10,30,.55),rgba(20,8,30,.6))}
+.floor .fn{font-family:var(--f-display);font-weight:700;font-size:18px;text-align:center;color:#e3d6ff}
 /* heatmap + charts */
 .heat{display:flex;gap:3px;width:max-content}
 .heat span{display:flex;flex-direction:column;gap:3px}
@@ -374,7 +392,7 @@ textarea{min-height:90px;font-family:var(--f-ui);font-size:12px}
 <nav class="nav" id="nav" hidden><div class="in">
   <button data-nav="home"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>Home</button>
   <button data-nav="quests"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.8-7 9-4-1.2-7-4.5-7-9V7z"/><path d="M9 12l2 2 4-4"/></svg></span>Quests</button>
-  <button data-nav="stats"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20v-7M10 20V6M15 20v-9M20 20V3"/></svg></span>Stats</button>
+  <button data-nav="gates"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V10a7 7 0 0 1 14 0v11"/><path d="M3 21h18M9 21v-6a3 3 0 0 1 6 0v6"/></svg></span>Gates</button>
   <button data-nav="inventory"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1.2 12.2a1 1 0 0 1-1 .8H7.2a1 1 0 0 1-1-.8z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>Inventory</button>
   <button data-nav="menu"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span>More</button>
 </div></nav>
@@ -438,6 +456,11 @@ const ACH=[
   {id:"necro",name:"Necromancer",rar:"legendary",icon:"ghost",desc:"Complete the Job Change.",cond:s=>s.job!=="None"},
   {id:"demon",name:"Demon Hunter",rar:"legendary",icon:"shield",desc:"Reach Level 50.",cond:s=>s.level>=50},
   {id:"monarch",name:"Shadow Monarch",rar:"mythic",icon:"crown",desc:"Reach Level 100.",cond:s=>s.level>=100},
+  {id:"skill",name:"Skill Awakened",rar:"common",icon:"bolt",desc:"Use your first skill.",cond:s=>!!s.flags.skillUsed},
+  {id:"diver",name:"Dungeon Diver",rar:"rare",icon:"shield",desc:"Clear 10 instant dungeons.",cond:s=>(s.runsDone||0)>=10},
+  {id:"urgent5",name:"Urgent Responder",rar:"rare",icon:"bolt",desc:"Clear 5 urgent quests.",cond:s=>(s.urgentDone||0)>=5},
+  {id:"floor50",name:"Halfway Up",rar:"epic",icon:"crown",desc:"Reach Floor 50 of the Demon Castle.",cond:s=>((s.castle||{}).floor||0)>=50},
+  {id:"castle",name:"Castle Conqueror",rar:"mythic",icon:"crown",desc:"Defeat the Demon King on Floor 100.",cond:s=>((s.castle||{}).floor||0)>=100},
   {id:"party",name:"Party Formed",rar:"rare",icon:"users",desc:"Add your first friend.",cond:s=>(s.flags.friends||0)>=1},
   {id:"week",name:"Consistent",rar:"common",icon:"flame",desc:"Reach a 7-day streak.",cond:s=>s.bestStreak>=7},
   {id:"measured",name:"Measured",rar:"common",icon:"stats",desc:"Log your first body check-in.",cond:s=>(s.body||[]).length>=1},
@@ -519,6 +542,7 @@ function art(key){
     ring:`<defs>${glow}${halo("#9a66ff")}<linearGradient id="b${g}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6ecff"/><stop offset="1" stop-color="#6c78a8"/></linearGradient></defs>${bg()}<g filter="url(#gl${g})"><ellipse cx="50" cy="60" rx="26" ry="20" fill="none" stroke="url(#b${g})" stroke-width="7"/><path d="M42 36 L50 24 L58 36 L50 44Z" fill="#b08bff" stroke="#e8dcff" stroke-width="1"/></g>`,
     scroll:`<defs>${glow}${halo("#f5bb4c")}<linearGradient id="b${g}" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9a36a"/><stop offset=".5" stop-color="#f3dfb2"/><stop offset="1" stop-color="#c9a36a"/></linearGradient></defs>${bg()}<g filter="url(#gl${g})" transform="rotate(-18 50 50)"><rect x="30" y="22" width="40" height="56" fill="url(#b${g})"/><rect x="26" y="16" width="48" height="9" rx="4.5" fill="#a47c43"/><rect x="26" y="75" width="48" height="9" rx="4.5" fill="#a47c43"/><path d="M36 36h28M36 44h24M36 52h28M36 60h18" stroke="#7a5a2c" stroke-width="2"/></g>`,
     flask:`<defs>${glow}${halo("#3ddc97")}<linearGradient id="b${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8ffe0"/><stop offset="1" stop-color="#138a5a"/></linearGradient></defs>${bg()}<g filter="url(#gl${g})"><path d="M42 18h16v18l16 30a10 10 0 0 1-9 14H35a10 10 0 0 1-9-14l16-30z" fill="rgba(180,255,220,.12)" stroke="#9ff5cf" stroke-width="1.6"/><path d="M31 58h38l5 9a10 10 0 0 1-9 13H35a10 10 0 0 1-9-13z" fill="url(#b${g})"/><rect x="40" y="12" width="20" height="7" rx="2" fill="#6b4a2a"/></g>`,
+    key:`<defs>${glow}${halo("#f5bb4c")}<linearGradient id="b${g}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff0b8"/><stop offset=".5" stop-color="#f5bb4c"/><stop offset="1" stop-color="#8a5a12"/></linearGradient></defs>${bg()}<g filter="url(#gl${g})" transform="rotate(-35 50 50)"><circle cx="34" cy="50" r="14" fill="none" stroke="url(#b${g})" stroke-width="7"/><circle cx="34" cy="50" r="4" fill="#3d7bff"/><path d="M48 46h36v8h-6v8h-7v-8h-6v6h-6v-6H48z" fill="url(#b${g})"/></g>`,
     potion:`<defs>${glow}${halo("#ff4f66")}<linearGradient id="b${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffb3c0"/><stop offset="1" stop-color="#b0142f"/></linearGradient></defs>${bg()}<g filter="url(#gl${g})"><circle cx="50" cy="60" r="22" fill="rgba(255,180,200,.12)" stroke="#ffc2cd" stroke-width="1.6"/><path d="M30 62a20 20 0 0 0 40 0z" fill="url(#b${g})"/><rect x="44" y="24" width="12" height="16" fill="rgba(255,180,200,.12)" stroke="#ffc2cd" stroke-width="1.6"/><rect x="42" y="18" width="16" height="7" rx="2" fill="#6b4a2a"/></g>`,
     chest:`<defs>${glow}${halo("#3d7bff")}<linearGradient id="b${g}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a58a8"/><stop offset="1" stop-color="#0d1a44"/></linearGradient></defs><circle cx="50" cy="52" r="48" fill="url(#h${g})"/><g filter="url(#gl${g})"><path d="M18 46 C18 26 82 26 82 46Z" fill="url(#b${g})" stroke="#8fc1ff" stroke-width="1.6"/><rect x="18" y="46" width="64" height="34" rx="3" fill="url(#b${g})" stroke="#8fc1ff" stroke-width="1.6"/><path d="M18 56h64" stroke="#f5bb4c" stroke-width="2.5"/><rect x="44" y="50" width="12" height="14" rx="2" fill="#f5bb4c"/><path d="M26 40 L32 20 M50 36 L50 10 M74 40 L68 20" stroke="#8fc1ff" stroke-width="2" stroke-linecap="round" opacity=".8"/></g>`,
     crystal:`<defs><linearGradient id="b${g}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8f2ff"/><stop offset=".45" stop-color="#6fa8ff"/><stop offset="1" stop-color="#1b3ea8"/></linearGradient>${glow}</defs><g filter="url(#gl${g})"><path d="M50 4 L70 40 L50 96 L30 40Z" fill="url(#b${g})" stroke="#cfe3ff" stroke-width="1"/><path d="M50 4 L56 40 L50 96 L44 40Z" fill="rgba(255,255,255,.35)"/><path d="M30 40 H70" stroke="#e8f2ff" stroke-width=".8"/></g>`
@@ -526,6 +550,103 @@ function art(key){
   return `<svg viewBox="0 0 100 100" aria-hidden="true">${A[key]||""}</svg>`;
 }
 
+// ================= skills =================
+const SKILLS=[
+  {id:"tenacity",name:"Tenacity",type:"Passive",icon:"shield",cost:0,desc:"Hold up to 3 streak shields instead of 2.",unlock:"Reach a 14-day streak",prog:s=>[Math.min(s.bestStreak,14),14]},
+  {id:"mana",name:"Mana Recovery",type:"Passive",icon:"drop",cost:0,desc:"Each quest restores 15 MP instead of 10.",unlock:"Reach 25 Intelligence",prog:s=>[Math.min(effStats().INT,25),25]},
+  {id:"sprint",name:"Sprint",type:"Active",icon:"wind",cost:40,desc:"Cut today's steps target by {p}%.",unlock:"Hit your step goal 10 times",prog:s=>[Math.min(s.counts.walk||0,10),10],cd:1},
+  {id:"bloodlust",name:"Bloodlust",type:"Active",icon:"flame",cost:30,desc:"Your next quest today gives ×{m} XP.",unlock:"Reach Level 10",prog:s=>[Math.min(s.level,10),10],cd:1},
+  {id:"aura",name:"Focus Aura",type:"Active",icon:"target",cost:30,desc:"Your next dungeon run gives +{a}% XP.",unlock:"Clear 1 instant dungeon",prog:s=>[Math.min(s.runsDone||0,1),1],cd:1},
+  {id:"stealth",name:"Stealth",type:"Active",icon:"moon",cost:80,desc:"Today counts as a pause day: no penalty if you miss. Cooldown {c} days.",unlock:"Clear 30 daily quests",prog:s=>[Math.min(s.totalDays,30),30],cd:14},
+  {id:"authority",name:"Ruler's Authority",type:"Active",icon:"crown",cost:70,desc:"For today, the penalty no longer halves your XP.",unlock:"Complete the Job Change",prog:s=>[s.job!=="None"?1:0,1],cd:1}
+];
+const skillOn=id=>{ const k=SKILLS.find(x=>x.id===id); const p=k.prog(S); return p[0]>=p[1]; };
+const skillLv=id=>{ const u=((S.skills||{})[id]||{}).uses||0; return Math.min(5,1+Math.floor(u/5)); };
+const maxMp=()=>100+effStats().INT*2;
+const maxShields=()=>skillOn("tenacity")?3:2;
+function skillText(k){ const lv=skillLv(k.id); return k.desc.replace("{p}",String(20+lv*5)).replace("{m}",(1.8+lv*.2).toFixed(1)).replace("{a}",String(40+lv*10)).replace("{c}",String(15-lv)); }
+function skillReady(k){ if(k.type!=="Active"||!skillOn(k.id)) return false; const st=S.skills[k.id]||{}; if(st.last){ const days=(parseDay(today())-parseDay(st.last))/864e5; const cd=k.id==="stealth"?15-skillLv(k.id):k.cd; if(days<cd) return false; } return (S.mp||0)>=k.cost; }
+function useSkill(id){
+  const k=SKILLS.find(x=>x.id===id); if(!k||!skillReady(k)) return;
+  const t=today(), h=rec(t); h.fx=h.fx||{}; const lv=skillLv(id);
+  if(id==="sprint") h.fx.sprint=(20+lv*5)/100;
+  if(id==="bloodlust"){ h.fx.bloodlust=1.8+lv*.2; h.fx.bloodUsed=false; }
+  if(id==="aura") h.fx.aura=(40+lv*10)/100;
+  if(id==="stealth"){ h.fx.stealth=true; h.paused=true; }
+  if(id==="authority") h.fx.authority=true;
+  S.mp-=k.cost; const st=S.skills[id]=S.skills[id]||{uses:0}; st.uses++; st.last=t; S.flags.skillUsed=true;
+  const lvAfter=skillLv(id); fx.mode="burst"; setTimeout(setScene,1200); haptic(60);
+  toast("Skill activated",k.name+(lvAfter>lv?" · reached Lv "+lvAfter:" · −"+k.cost+" MP"),"violet",k.icon);
+  commit();
+}
+// ================= demon castle =================
+const BOSSES=["Cerberus, Gatekeeper","Demon Knight","Hellhound Pack","Infernal Archmage","Demon Noble","Wraith General","Flame Warden","Demon General","Abyss Lord","Demon King"];
+const bossName=f=>{ const i=Math.floor(f/10)-1; const lap=Math.floor(i/10); return (lap?"Abyssal ":"")+BOSSES[((i%10)+10)%10]+(lap>1?" "+"I".repeat(Math.min(lap,5)):""); };
+function castleStep(kind){
+  const c=S.castle; const next=c.floor+1, boss=next%10===0;
+  if(kind==="clear"){ if(boss){ note("castle","Boss floor ahead","Floor "+next+": "+bossName(next)+" blocks the way. Only a perfect day can defeat it.","red"); return; } c.floor=next; S.gold+=10; return; }
+  // perfect: climb one more floor; if the next floor is a boss, this is the fight
+  c.floor=next; S.gold+=10;
+  if(boss){ const x=gain(200); S.gold+=150; S.potions++; S.bonusLoot=(S.bonusLoot||0)+1; c.bosses=(c.bosses||0)+1;
+    note("castle","Boss defeated","Floor "+next+": "+bossName(next)+" falls. +"+x+" XP, +150 G, potion and a chest.","gold");
+    setTimeout(()=>{ fx.mode="burst"; toast("Boss defeated",bossName(next)+" · Floor "+next+" · +"+x+" XP","gold","crown"); setTimeout(setScene,1500); },900); }
+}
+function reconcileCastle(){
+  const t=today(); for(let i=2;i>=0;i--){ const k=addDay(t,-i); const h=S.history[k]; if(!h||k<S.startDate) continue;
+    if(h.cleared&&!h.cC){ h.cC=1; castleStep("clear"); }
+    if(h.perfect&&!h.cP){ h.cP=1; castleStep("perfect"); } }
+}
+// ================= urgent quests =================
+function seeded(str){ let h=1779033703^str.length; for(let i=0;i<str.length;i++){ h=Math.imul(h^str.charCodeAt(i),3432918353); h=h<<13|h>>>19; } return function(){ h=Math.imul(h^h>>>16,2246822507); h=Math.imul(h^h>>>13,3266489909); h^=h>>>16; return (h>>>0)/4294967296; }; }
+function urgentFor(k){
+  if(S.urgent[k]!==undefined) return S.urgent[k];
+  if(k<=S.startDate){ S.urgent[k]=null; return null; }
+  const rng=seeded("urg"+k+S.startDate); if(rng()>=.43){ S.urgent[k]=null; return null; }
+  const d=parseDay(k); const mins=600+Math.floor(rng()*630); d.setHours(0,0,0,0); const at=d.getTime()+mins*60000;
+  const t=tierOf(S.level), pick=Math.floor(rng()*8);
+  const texts=[`Do ${[10,15,20,25,30,40][t]} push-ups`,`Do ${[15,20,30,40,50,60][t]} squats`,`Hold a plank for ${[30,45,60,75,90,120][t]} seconds`,`Walk for ${[10,10,15,15,20,20][t]} minutes`,`Read ${[3,5,5,8,10,10][t]} pages`,`Drink a full glass of water`,`Tidy your desk or workspace for 5 minutes`,`5 minutes of slow breathing, phone face down`];
+  const icons=["dumbbell","dumbbell","dumbbell","shoe","book","drop","star","moon"];
+  if(at+3600000<Date.now()){ S.urgent[k]=null; return null; }
+  S.urgent[k]={at,dur:3600000,text:texts[pick],icon:icons[pick],done:false,missed:false};
+  return S.urgent[k];
+}
+function urgentNow(){ if(!S||S.pause) return null; const u=urgentFor(today()); if(!u||u.done||u.missed) return null; const n=Date.now(); return n>=u.at&&n<u.at+u.dur?u:null; }
+function urgentSweep(){
+  let ch=false; Object.keys(S.urgent).forEach(k=>{ const u=S.urgent[k]; if(u&&!u.done&&!u.missed&&Date.now()>=u.at+u.dur){ u.missed=true; ch=true; if(!S.pause&&!(S.history[k]&&S.history[k].paused)){ S.gold=Math.max(0,S.gold-20); note("urgent","Urgent quest failed","\""+u.text+"\" expired. The System fined you 20 G.","red"); } } });
+  const ks=Object.keys(S.urgent).sort(); while(ks.length>21){ delete S.urgent[ks.shift()]; ch=true; }
+  return ch;
+}
+function completeUrgent(){ const u=urgentNow(); if(!u) return; u.done=true; S.urgentDone=(S.urgentDone||0)+1; const x=gain(50); S.gold+=30; S.mp=Math.min(maxMp(),(S.mp||0)+15);
+  fx.mode="burst"; setTimeout(setScene,1300); haptic(90); toast("Urgent quest cleared",u.text+" · +"+x+" XP · +30 G · +15 MP","gold","bolt"); commit(); }
+// ================= instant dungeons =================
+const DUNGEONS=[{id:"e",name:"Subway Gate",rank:"E",mins:25,xp:60,gold:40,boss:"Giant Rat King"},{id:"c",name:"Red Gate",rank:"C",mins:50,xp:130,gold:90,boss:"Ice Elf Chieftain"}];
+function startRun(id){
+  const d=DUNGEONS.find(x=>x.id===id); if(!d||S.run||(S.keys||0)<1) return;
+  S.keys--; const h=rec(today()); const aura=h.fx&&h.fx.aura&&!h.fx.auraUsed?h.fx.aura:0; if(aura){ h.fx.auraUsed=true; }
+  S.run={id,startedAt:Date.now(),endsAt:Date.now()+d.mins*60000,aura,left:null};
+  if(hasA("scheduleRunEnd")) Android.scheduleRunEnd(S.run.endsAt);
+  screen="run"; hist=[]; commit(); window.scrollTo(0,0);
+}
+function endRun(ok,reason){
+  const r=S.run; if(!r) return; const d=DUNGEONS.find(x=>x.id===r.id); S.run=null; if(hasA("cancelRunEnd")) Android.cancelRunEnd();
+  if(!ok){ note("dungeon","Dungeon failed",reason||"You fled the "+d.name+". The key is lost.","red"); toast("Dungeon failed",reason||"You fled the dungeon. The key is lost.","red","x"); screen="gates"; commit(); return; }
+  const t=today(), h=rec(t); S.runsDone=(S.runsDone||0)+1; const x=gain(Math.round(d.xp*(1+(r.aura||0)))); S.gold+=d.gold;
+  let extra=""; if(d.mins>=50||Math.random()<.3){ S.bonusLoot=(S.bonusLoot||0)+1; extra=" · chest"; } if(Math.random()<.12){ S.keys++; extra+=" · key"; }
+  h.focusMin=(h.focusMin||0)+d.mins;
+  const deep=planFor(t).find(q=>q.id==="deep");
+  note("dungeon","Dungeon cleared",d.name+" cleared. "+d.boss+" defeated. +"+x+" XP, +"+d.gold+" G"+extra+".","gold");
+  screen="gates";
+  document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg" style="background:rgba(2,4,12,.35)"><span class="shock"></span><span class="shock s2"></span><span class="shock s3"></span><div class="lu" style="position:relative">
+    <div class="t1">SYSTEM</div><div class="t2" style="font-size:26px">DUNGEON CLEARED</div>
+    <div style="margin:18px auto 6px;width:120px">${rankBadge(d.rank,120)}</div>
+    <div class="label" style="color:#9cc3ff">${esc(d.boss)} defeated</div>
+    <div style="font-family:var(--f-ui);font-weight:700;font-size:26px;margin-top:6px;text-shadow:0 0 14px rgba(90,150,255,.8)">+${x} XP · +${d.gold} G</div>
+    <div class="small muted">${d.mins} focused minutes${extra?" · bonus"+esc(extra):""}</div>
+    <button class="btn" style="margin-top:20px" data-act="lu-close">Continue</button></div></div>`;
+  fx.mode="burst";
+  if(deep&&deep.mins&&!h.q.deep&&h.focusMin>=deep.mins){ setTimeout(()=>{ completeQuest("deep"); toast("Deep Work complete","Your focus runs covered today's "+deep.mins+" minutes","","laptop"); },600); }
+  commit();
+}
 // ================= rank badges =================
 const RANK_METAL={E:["#e3e8f2","#8c96ab","#3e475c"],D:["#e3e8f2","#8c96ab","#3e475c"],C:["#e8eef8","#9aa6be","#46506a"],B:["#ffe2b0","#d08f3e","#6a3f12"],A:["#eef5ff","#8fb3ea","#34507f"],S:["#fff1bf","#f0b93f","#7c5210"],SS:["#fff1bf","#f0b93f","#7c5210"],"S+":["#efe4ff","#a882ff","#452090"],SSS:["#f4f0ff","#c3b3ff","#4a3a8f"]};
 function rankBadge(code,size,dim){
@@ -576,7 +697,7 @@ function fresh(){
     stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:0,potions:0,streak:0,bestStreak:0,totalDays:0,perfectDays:0,
     job:"None",title:"Awakened",ach:[],items:[],counts:{},penalty:null,jobTrial:null,flags:{},
     settings:{difficulty:"normal",restDay:0,dayStart:0,remindOn:true,remindAM:"08:00",remindPM:"21:00"},
-    quests:JSON.parse(JSON.stringify(BASE_QUESTS)),freezes:0,pause:null,weekly:{},bonusLoot:0,body:[],archive:{},totalXp:0,
+    quests:JSON.parse(JSON.stringify(BASE_QUESTS)),mp:100,skills:{},keys:1,urgent:{},run:null,castle:{floor:0},runsDone:0,urgentDone:0,freezes:0,pause:null,weekly:{},bonusLoot:0,body:[],archive:{},totalXp:0,
     rewards:[{id:"r1",name:"Cheat meal",cost:400},{id:"r2",name:"Movie or series night",cost:250},{id:"r3",name:"Something new under ₹1,000",cost:900}],
     history:{},shadows:[],log:[],notes:[],notesSeen:0,pendingLevelUp:null};
 }
@@ -586,7 +707,8 @@ function migrate(d){
   if(d.v>=2){ const m=Object.assign(s,d); m.v=3; m.settings=Object.assign(fresh().settings,d.settings||{}); m.stats=Object.assign(fresh().stats,d.stats||{}); m.flags=d.flags||{}; m.counts=d.counts||{};
     if(!Array.isArray(m.quests)||!m.quests.length) m.quests=JSON.parse(JSON.stringify(BASE_QUESTS));
     if(!m.totalXp) m.totalXp=Object.values(m.history||{}).reduce((a,h)=>a+((h&&h.xp)||0),0);
-    ["weekly","archive"].forEach(k=>{ if(!m[k]||typeof m[k]!=="object") m[k]={}; }); if(!Array.isArray(m.body)) m.body=[];
+    ["weekly","archive","skills","urgent"].forEach(k=>{ if(!m[k]||typeof m[k]!=="object") m[k]={}; }); if(!Array.isArray(m.body)) m.body=[];
+    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
     return m; }
   ["name","startDate","lastSeen","level","xp","gold","potions","streak","bestStreak","totalDays","rewards","statPoints"].forEach(k=>{ if(d[k]!=null) s[k]=d[k]; });
   if(d.stats){ s.stats={STR:d.stats.STR||10,VIT:d.stats.VIT||10,INT:d.stats.INT||10,AGI:d.stats.AGI||10,FOC:d.stats.PER||10,DIS:10}; }
@@ -598,7 +720,7 @@ function effStats(){ const e=Object.assign({},S.stats); S.items.forEach(k=>{ con
 function habitDone(h,id){ if(!h) return false; return id==="daily"?!!h.cleared:!!(h.q&&h.q[id]); }
 function habitStreak(id){ let k=today(), n=0; if(!habitDone(S.history[k],id)) k=addDay(k,-1); while(habitDone(S.history[k],id)){ n++; k=addDay(k,-1); } return n; }
 function activeShadows(){ return S.shadows.filter(sh=>habitStreak(sh.habit)>0).length; }
-function mult(){ let m=1+Math.min(.30,activeShadows()*.03); if(S.penalty) m*=.5; return m; }
+function mult(){ let m=1+Math.min(.30,activeShadows()*.03); const h=S.history[today()]; if(S.penalty&&!(h&&h.fx&&h.fx.authority)) m*=.5; return m; }
 
 // ---- quest plan ----
 function splitFor(dow){ const rest=S.settings.restDay; if(dow===rest) return "Mobility"; return SPLITS[(dow-rest-1+7)%7]; }
@@ -607,7 +729,8 @@ function planFor(k){
   const r=(v,step)=>Math.max(step,Math.round(v/step)*step);
   const split=splitFor(dow);
   const mins=split==="Mobility"?10:r([15,20,25,30,40,45][tier]*m,5);
-  const steps=r([4000,5000,6000,7000,8000,10000][tier]*m,500);
+  const hk=S.history[k]||{}; const spr=hk.fx&&hk.fx.sprint?1-hk.fx.sprint:1;
+  const steps=r([4000,5000,6000,7000,8000,10000][tier]*m*spr,500);
   const pages=r([5,10,15,20,25,30][tier]*m,5);
   const deep=r([30,45,60,75,90,120][tier]*m,15);
   const water=[2,2.5,2.5,3,3,3.5][tier];
@@ -622,7 +745,8 @@ function planFor(k){
     if(q.id==="deep") detail=deep+" min focused work, phone away";
     if(q.id==="water") detail="Drink "+water+" L of water";
     if(q.id==="disc") detail="No social media after "+late+" PM";
-    return Object.assign({},q,{detail,drills:q.id==="train"?drills:null,split});
+    if(q.id==="walk"&&spr<1) detail+=" · Sprint";
+    return Object.assign({},q,{detail,drills:q.id==="train"?drills:null,split,mins:q.id==="deep"?deep:null});
   });
 }
 function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.id==="train"&&q.name==="Physical Training"?"Training":q.name,detail:q.detail,xp:q.xp,icon:q.icon})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
@@ -653,8 +777,8 @@ function checkAch(silent){
 function afterQuest(h,k){
   const n=doneCount(h);
   if(n>=clearAt() && !h.cleared){
-    h.cleared=true; h.loot=true; S.streak++; S.totalDays++; S.bestStreak=Math.max(S.bestStreak,S.streak); S.statPoints+=3;
-    if(S.streak%7===0 && (S.freezes||0)<2){ S.freezes=(S.freezes||0)+1; note("loot","Streak shield earned","A shield will absorb one missed day. You hold "+S.freezes+".","gold"); }
+    h.cleared=true; h.loot=true; S.mp=maxMp(); S.streak++; S.totalDays++; S.bestStreak=Math.max(S.bestStreak,S.streak); S.statPoints+=3;
+    if(S.streak%7===0 && (S.freezes||0)<maxShields()){ S.freezes=(S.freezes||0)+1; note("loot","Streak shield earned","A shield will absorb one missed day. You hold "+S.freezes+".","gold"); }
     const x=gain(40,k);
     toast("Daily quest cleared","+"+x+" XP · +3 stat points · loot box ready","","trophy");
     if(S.streak>1) setTimeout(()=>toast("Streak increased",S.streak+" days · Keep going.","streak","flame"),900);
@@ -673,13 +797,15 @@ function completeQuest(id,dayK){
   const q=qById(id); if(!q) return;
   undoSnap=JSON.stringify(S);
   h.q[id]=true; S.counts[id]=(S.counts[id]||0)+1; S.gold+=10;
-  const x=gain(q.xp,k);
+  let base=q.xp; if(k===today()&&h.fx&&h.fx.bloodlust&&!h.fx.bloodUsed){ base=Math.round(base*h.fx.bloodlust); h.fx.bloodUsed=true; }
+  const x=gain(base,k);
+  S.mp=Math.min(maxMp(),(S.mp||0)+(skillOn("mana")?15:10));
   haptic(25);
   toast(k===today()?"Quest complete":"Logged for yesterday",q.name+" · +"+x+" XP · +10 G","",q.icon,true);
   const wasCleared=!!h.cleared;
   afterQuest(h,k);
   if(k!==today() && !wasCleared && h.cleared){
-    if(h.frozen){ h.frozen=false; S.freezes=Math.min(2,(S.freezes||0)+1); note("loot","Shield returned","Yesterday is cleared, so your streak shield is back.","gold"); }
+    if(h.frozen){ h.frozen=false; S.freezes=Math.min(maxShields(),(S.freezes||0)+1); note("loot","Shield returned","Yesterday is cleared, so your streak shield is back.","gold"); }
     if(S.penalty && S.penalty.forDay===k && !S.penalty.multi){
       const t=S.history[today()]; S.streak=(S.penalty.prevStreak||0)+1+(t&&t.cleared?1:0); S.bestStreak=Math.max(S.bestStreak,S.streak);
       S.penalty=null; ui.plankEnd=null; note("penalty","Penalty lifted","You logged yesterday in time. Streak restored to "+S.streak+".");
@@ -701,7 +827,7 @@ function processDays(){
   let d=S.lastSeen, missed=0, lastMiss=null, shielded=0; const prev=S.streak;
   while(d<t){ const h=S.history[d];
     if(d>S.startDate && !(h&&h.cleared)){
-      if(S.pause && d>=S.pause.since){ rec(d).paused=true; }
+      if((S.pause && d>=S.pause.since)||(h&&h.paused)){ rec(d).paused=true; }
       else if((S.freezes||0)>0){ S.freezes--; rec(d).frozen=true; shielded++; }
       else { missed++; lastMiss=d; }
     }
@@ -724,11 +850,12 @@ function reconcile(){
   const t=today(), wk=weekKey(t); let c=0; for(let i=0;i<7;i++){ const k=addDay(wk,i); if(S.history[k]&&S.history[k].cleared) c++; }
   if(c>=5 && !S.weekly[wk]){ S.weekly[wk]=true; const x=gain(100,t); S.gold+=150; S.bonusLoot=(S.bonusLoot||0)+1;
     note("loot","Weekly Dungeon cleared","+"+x+" XP, +150 G and a dungeon chest.","gold"); setTimeout(()=>toast("Weekly Dungeon cleared","+"+x+" XP · +150 G · dungeon chest","gold","shield"),800); }
+  reconcileCastle(); urgentSweep();
   checkAch();
 }
 // ================= persistence =================
 let saving=false, dirty=false, saveTimer=null;
-function serial(){ S.plan=widgetPlan(); S.mult=mult(); S.smult=1+Math.min(.3,activeShadows()*.03); S.clearAt=clearAt(); return JSON.stringify(S); }
+function serial(){ urgentFor(today()); urgentFor(addDay(today(),1)); S.mpMax=maxMp(); S.mpq=skillOn("mana")?15:10; S.maxShields=maxShields(); S.plan=widgetPlan(); S.mult=mult(); S.smult=1+Math.min(.3,activeShadows()*.03); S.clearAt=clearAt(); return JSON.stringify(S); }
 function commit(now){ reconcile(); render(); netSchedule(); dirty=true; clearTimeout(saveTimer); if(window.Android) flush(); else saveTimer=setTimeout(flush,now?50:600); }
 async function flush(){
   if(saving){ saveTimer=setTimeout(flush,300); return; }
@@ -751,6 +878,7 @@ async function boot(){
   S=migrate(data);
   if(S){ const ch=processDays(); checkAch(true); if(ch||!data||data.v!==2) commit(); else render(); }
   else render();
+  if(S&&S.run){ checkRunReturn(); if(S&&S.run) screen="run"; render(); }
   setInterval(tick,1000);
   setTimeout(()=>checkUpdate(false),2500);
   setTimeout(()=>{ if(S&&S.net) netBoard(); },3000);
@@ -766,20 +894,26 @@ async function checkUpdate(manual){
     else if(manual) toast("Update","You're on the latest build.","","check");
   }catch(e){ if(manual) toast("Update","Couldn't check. Are you online?","red","x"); }
 }
-window.__onResume=function(){ if(!window.Android) return; setTimeout(()=>{ if(S&&S.net) netBoard(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } } }catch(e){} };
+window.__appLeft=function(interactive){ if(S&&S.run&&interactive){ S.run.left=Date.now(); dirty=true; flush(); } };
+function checkRunReturn(){ if(!S||!S.run) return; if(S.run.left){ const away=Date.now()-S.run.left; if(away>45000){ endRun(false,"You left the dungeon for too long. The key is lost."); return; } S.run.left=null; commit(); } if(Date.now()>=S.run.endsAt) endRun(true); }
+window.__onResume=function(){ if(!window.Android) return; setTimeout(()=>{ if(S&&S.net) netBoard(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } checkRunReturn(); if(S&&S.run){ screen="run"; render(); } } }catch(e){} };
 window.__back=function(){ if(document.getElementById("ov").innerHTML){ closeOv(); return true; } if(screen==="settings"&&ui.setPage){ ui.setPage=null; render(); return true; } if(hist.length){ screen=hist.pop(); render(); return true; } if(screen!=="home"){ screen="home"; render(); return true; } return false; };
 function tick(){
   if(!S) return;
   if(processDays()){ commit(); return; }
   const c=document.getElementById("clock"); if(c) c.textContent=untilMidnight();
+  if(S.run){ if(Date.now()>=S.run.endsAt&&!S.run.left){ endRun(true); return; }
+    const rc=document.getElementById("runclock"); if(rc&&screen==="run"){ const d=DUNGEONS.find(x=>x.id===S.run.id); const left=Math.max(0,S.run.endsAt-Date.now()); rc.textContent=pad(Math.floor(left/60000))+":"+pad(Math.floor(left%60000/1000)); if(Math.floor(Date.now()/1000)%15===0) render(); } }
+  const uc=document.getElementById("uclock"); if(uc){ const u=urgentNow(); if(!u){ render(); } else { const left=u.at+u.dur-Date.now(); uc.textContent=pad(Math.floor(left/60000))+":"+pad(Math.floor(left%60000/1000)); } }
+  else if(screen==="home"||screen==="quests"||screen==="gates"){ if(urgentNow()&&Math.floor(Date.now()/1000)%5===0) render(); }
   if(ui.plankEnd){ const left=Math.max(0,Math.ceil((ui.plankEnd-Date.now())/1000)); const pc=document.getElementById("pclock"); if(pc) pc.textContent="0:"+pad(left); const pb=document.getElementById("psurv"); if(pb&&left===0&&pb.disabled){ pb.disabled=false; haptic(200); } }
 }
 function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH(),0,0,0); if(m<=n) m.setDate(m.getDate()+1); const s=Math.floor((m-n)/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
 
 // ================= navigation =================
 function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
-function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex"}[sc]||"calm"; }
-function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=screen==="army"?"violet":"blue"; }
+function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"gate",run:"vortex",castle:"storm",skills:"vortex"}[sc]||"calm"; }
+function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=screen==="army"||screen==="castle"||screen==="skills"?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
 function unread(){ return S.notes.filter(n=>n.t>S.notesSeen).length; }
 function topbar(title,sub,backable){
@@ -828,6 +962,7 @@ function vHome(){
   </section>
   <div class="stack" style="margin-top:6px">
     ${updateCard()}
+    ${urgentCard()}
     ${penaltyCard()}
     <section class="card hot">
       <div class="sec-h"><h2>Today's quests <span class="muted num" style="font-weight:500">${n}/${N}</span></h2><button class="tiny muted" data-act="go" data-to="quests" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</button></div>
@@ -841,6 +976,9 @@ function vHome(){
     ${checkinDue()?`<section class="card" data-act="go" data-to="body" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("stats","","color:#8fc1ff")}<div><div class="label">Weekly check-in</div><div class="small">Log your weight and max reps to track real progress.</div></div></section>`:""}
     <div class="pills">
       <span class="pill">${ico("flame")}${S.streak}-day streak</span>
+      <span class="pill violet">${ico("drop")}${S.mp||0}/${maxMp()} MP</span>
+      <button class="pill violet" data-act="go" data-to="castle">${ico("crown")}Castle floor ${S.castle.floor}</button>
+      ${S.keys?`<button class="pill gold" data-act="go" data-to="gates">${ico("chest")}${S.keys} key${S.keys>1?"s":""}</button>`:""}
       <span class="pill gold">${ico("coin")}${fmt(S.gold)} G</span>
       ${S.freezes?`<span class="pill gold">${ico("shield")}${S.freezes} shield${S.freezes>1?"s":""}</span>`:""}
       ${S.statPoints?`<button class="pill" data-act="go" data-to="allocate">+${S.statPoints} stat points</button>`:""}
@@ -884,6 +1022,7 @@ function vQuests(){
   <div class="stack">
   ${qTabs(back?"yesterday":"today")}
   ${S.pause?`<section class="card violet" style="display:flex;gap:12px;align-items:center">${ico("moon","","color:#c8a9ff")}<div style="flex:1"><div class="label" style="color:#c8a9ff">Pause mode</div><div class="small">No penalties while paused. Quests you do still count.</div></div><button class="btn violet sm" data-act="unpause">Resume</button></section>`:""}
+  ${back?"":urgentCard()}
   ${back?"":penaltyCard()}
   ${plan.map(q=>{ const d=!!h.q[q.id];
     return `<section class="card quest${d?" done":""}">
@@ -908,6 +1047,7 @@ function vStatus(){
   return `${topbar("Player status")}
   <div class="ring-wrap">${ring(220,pct,9,"s")}<div class="ring-center"><span class="l">LEVEL</span><span class="n num">${S.level}</span><span class="x num">${fmt(S.xp)+" / "+fmt(need(S.level))+" XP"}</span></div></div>
   <div class="stack">
+  <div><div class="xp-row" style="margin:0 0 4px"><span>MANA</span><span class="num">${S.mp||0} / ${maxMp()} MP</span></div><div class="bar mpbar"><i style="width:${Math.round((S.mp||0)/maxMp()*100)}%"></i></div></div>
   <div class="stat-grid">${STAT_KEYS.map(k=>`<section class="card stat-tile"><div class="k">${STAT_NAMES[k].toUpperCase()}</div><div class="v num">${e[k]}</div><div class="bar"><i style="width:${Math.round(e[k]/mx*100)}%"></i></div>${e[k]>S.stats[k]?`<div class="plus-b">+${e[k]-S.stats[k]} items</div>`:""}</section>`).join("")}</div>
   ${S.statPoints?`<button class="btn wide" data-act="go" data-to="allocate">Allocate ${S.statPoints} stat points</button>`:""}
   <section class="card classcard">
@@ -1011,7 +1151,7 @@ function vStats(){
 }
 function vNotes(){
   const seen=S.notesSeen; S.notesSeen=Date.now(); setTimeout(()=>{dirty=true;flush();},100);
-  const im={quest:"quests",level:"bolt",title:"trophy",penalty:"flame",loot:"chest",shadow:"ghost"};
+  const im={quest:"quests",level:"bolt",title:"trophy",penalty:"flame",loot:"chest",shadow:"ghost",castle:"crown",urgent:"bolt",dungeon:"shield"};
   return `${topbar("Notifications","",true)}
   <div class="stack" style="margin-top:12px">${S.notes.map(n=>{ const d=new Date(n.t);
     return `<section class="card note ${n.kind}${n.t>seen?" unread":""}"><div class="ni">${ico(im[n.type]||"bell")}</div><div><div class="nt">${esc(n.title)}</div><div class="nb">${esc(n.body)}</div>
@@ -1046,6 +1186,7 @@ function vStore(){
   <div class="stack">
   <div class="center"><span class="pill gold" style="font-size:15px;padding:6px 14px">${ico("coin")}${fmt(S.gold)} G</span></div>
   <section class="card">
+    <div class="lrow"><div style="width:44px">${art("key")}</div><div class="grow"><div>Dungeon key</div><div class="tiny muted">Opens an instant dungeon. Owned: ${S.keys||0}</div></div><button class="btn gold sm" data-act="buy" data-id="key" ${S.gold>=150?"":"disabled"}>150 G</button></div>
     <div class="lrow"><div style="width:44px">${art("potion")}</div><div class="grow"><div>Status Recovery potion</div><div class="tiny muted">Cancels a penalty and its debuff. Owned: ${S.potions}</div></div><button class="btn gold sm" data-act="buy" data-id="potion" ${S.gold>=500?"":"disabled"}>500 G</button></div>
     ${S.rewards.map(r=>`<div class="lrow"><button class="xbtn" data-act="del-reward" data-id="${r.id}" aria-label="Delete ${esc(r.name)}">${ico("x","","width:16px;height:16px")}</button><div class="grow">${esc(r.name)}</div>
       <button class="btn ${ui.pendingBuy===r.id?"":"gold"} sm" data-act="buy" data-id="${r.id}" ${S.gold>=r.cost?"":"disabled"}>${ui.pendingBuy===r.id?"Confirm −"+fmt(r.cost):fmt(r.cost)+" G"}</button></div>`).join("")}
@@ -1098,7 +1239,7 @@ function vSettingsFull(){
     ${st.remindOn?`<div class="form-row"><div class="field" style="flex:1"><label class="label" for="remAM">Morning</label><input id="remAM" type="time" value="${esc(st.remindAM)}"></div><div class="field" style="flex:1"><label class="label" for="remPM">Evening warning</label><input id="remPM" type="time" value="${esc(st.remindPM)}"></div></div>`:""}
   </section>`:""}
   <section class="card stack" data-sec="pause"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Pause mode</div><div class="tiny muted">Travelling or unwell? No penalties and your streak waits for you.</div></div><button class="toggle ${S.pause?"on":""}" data-act="${S.pause?"unpause":"pause"}" aria-label="Pause mode"></button></div>
-    <div class="tiny muted">Streak shields: <b style="color:var(--gold)">${S.freezes||0}/2</b>. You earn one every 7-day streak; each absorbs one missed day automatically.</div></section>
+    <div class="tiny muted">Streak shields: <b style="color:var(--gold)">${S.freezes||0}/${maxShields()}</b>. You earn one every 7-day streak; each absorbs one missed day automatically.</div></section>
   <section class="card stack" data-sec="data"><div class="label">Backup</div>
     ${A?`<p class="small muted" style="margin:0">Save a backup file to your phone or Google Drive, and restore it on a new phone. The app also keeps 14 days of automatic snapshots.</p>
       <div class="form-row"><button class="btn sm" data-act="exportfile">Save backup file</button><button class="btn ghost sm" data-act="importfile">Restore from file</button><button class="btn ghost sm" data-act="snaps">Snapshots</button></div>
@@ -1197,6 +1338,69 @@ function friendsCard(){
   return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0"><div class="sec-h" style="margin-bottom:4px"><h2>This week's leaderboard</h2><span class="tiny muted" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</span></div>
     ${rows.length?rows.map(boardRow).join(""):`<p class="tiny muted" style="margin:6px 0">Loading…</p>`}</section>`;
 }
+function urgentCard(){
+  const u=urgentNow(); if(!u) return "";
+  const left=Math.max(0,u.at+u.dur-Date.now()); const m=Math.floor(left/60000), sec=Math.floor(left%60000/1000);
+  return `<section class="card urgent-card"><div style="display:flex;gap:12px;align-items:center"><div class="qicon" style="color:#ff8fa0;border-color:rgba(255,120,140,.5)">${ico(u.icon||"bolt")}</div>
+    <div style="flex:1;min-width:0"><div class="label">Urgent quest</div><div style="font-weight:700;font-size:16px">${esc(u.text)}</div><div class="tiny" style="color:#ffc9d1">Time left <span class="num" id="uclock">${pad(m)}:${pad(sec)}</span> · +50 XP, +30 G, +15 MP · fail: −20 G</div></div></div>
+    <button class="btn red wide" style="margin-top:12px" data-act="urgentdone">${ico("check")}Done it</button></section>`;
+}
+function vGates(){
+  const t=today(), u=urgentFor(t), c=S.castle, nextBoss=Math.ceil((c.floor+1)/10)*10;
+  return `${topbar("Gates","Dungeons, urgent quests and the Demon Castle")}
+  <div class="stack">
+  ${urgentCard()}
+  ${!urgentNow()?`<section class="card" style="display:flex;gap:12px;align-items:center">${ico("bolt","","color:#ff8fa0;width:26px;height:26px")}<div><div class="label">Urgent quests</div><div class="small">${u&&u.done?"Today's urgent quest is cleared.":u&&u.missed?"Today's urgent quest expired.":"They appear without warning on some days. Keep notifications on."}</div><div class="tiny muted">${S.urgentDone||0} cleared so far</div></div></section>`:""}
+  <section class="card"><div class="sec-h" style="margin-bottom:6px"><h2>Instant dungeons</h2><span class="pill gold">${ico("chest")}${S.keys||0} key${(S.keys||0)===1?"":"s"}</span></div>
+    <p class="tiny muted" style="margin:0 0 6px">A focus run: stay in the app until the boss falls. Switching to another app for more than 45 seconds means you fled. Screen off is fine. Runs count toward Deep Work.</p>
+    ${DUNGEONS.map(d=>`<div class="dg" style="padding:10px 0;border-top:1px solid rgba(100,140,255,.1)"><div>${rankBadge(d.rank,60)}</div><div><div style="font-weight:700">${d.name}</div><div class="tiny muted">${d.mins} min · boss: ${d.boss}</div><div class="tiny" style="color:#9cc3ff">+${d.xp} XP · +${d.gold} G${d.mins>=50?" · chest":" · chest 30%"}</div></div>
+      <button class="btn sm" data-act="startrun" data-id="${d.id}" ${(S.keys||0)<1||S.run?"disabled":""}>Enter</button></div>`).join("")}
+    ${(S.keys||0)<1?`<p class="tiny muted" style="margin:6px 0 0">No keys. Keys drop from loot boxes and chests, or cost 150 G in the Store.</p>`:""}
+  </section>
+  <section class="card violet" data-act="go" data-to="castle" role="button" tabindex="0"><div style="display:flex;gap:14px;align-items:center">${ico("crown","","color:#d7c4ff;width:34px;height:34px;filter:drop-shadow(0 0 8px #9a66ff)")}
+    <div style="flex:1"><div class="label" style="color:#c8a9ff">Demon Castle</div><div style="font-family:var(--f-display);font-weight:700;font-size:22px">Floor ${c.floor}<span class="small muted"> / 100</span></div><div class="tiny" style="color:#d6c8ff">Next boss: Floor ${nextBoss} · ${esc(bossName(nextBoss))}</div></div></div>
+    <div class="bar violet" style="margin-top:10px"><i style="width:${Math.min(100,c.floor%100||(c.floor?100:0))}%"></i></div></section>
+  ${weeklyCard()}
+  </div>`;
+}
+function vRun(){
+  const r=S.run; if(!r){ screen="gates"; return vGates(); }
+  const d=DUNGEONS.find(x=>x.id===r.id), total=d.mins*60000, left=Math.max(0,r.endsAt-Date.now()), done=1-left/total;
+  const monsters=Math.floor(done*d.mins/2.5), bossNear=left<180000;
+  return `<div class="sysbar"><div class="wordmark">SYSTEM</div><span class="pill gold">${ico("chest")}${S.keys||0}</span></div>
+  <h1 class="screen-title">${esc(d.name)}</h1><p class="screen-sub">${d.rank}-rank instant dungeon${r.aura?" · Focus Aura +"+Math.round(r.aura*100)+"%":""}</p>
+  <div class="run-ring">${ring(260,done,10,"r")}<div class="ring-center"><span class="l">${bossNear?"BOSS":"TIME LEFT"}</span><span class="n num" id="runclock">${pad(Math.floor(left/60000))}:${pad(Math.floor(left%60000/1000))}</span><span class="x num" id="runmon">${monsters} monsters cleared</span></div></div>
+  <div class="stack">
+  <section class="card${bossNear?" red":""} center"><div class="label" style="${bossNear?"color:#ff9aaa":""}">${bossNear?esc(d.boss)+" has appeared":"Stay focused"}</div><p class="small" style="margin:6px 0 0">${bossNear?"Hold on. The boss falls when the timer ends.":"Put the phone down and work. Leaving the app for more than 45 seconds means you fled."}</p></section>
+  <button class="btn ghost wide" data-act="retreat">${ui.pendingRetreat?"Tap again to retreat (key lost)":"Retreat"}</button>
+  </div>`;
+}
+function vCastle(){
+  const c=S.castle, f=c.floor; const rows=[]; const top=Math.max(f+6,Math.ceil((f+1)/10)*10);
+  for(let n=top;n>=Math.max(1,f-3);n--){ const boss=n%10===0, cur=n===f+1, done=n<=f;
+    rows.push(`<div class="floor${boss?" boss":""}${cur?" cur":""}${done?" done":""}"><span class="fn">${n}</span><span><div style="font-weight:600">${boss?esc(bossName(n)):done?"Cleared":cur?"Next floor":"Floor "+n}</div><div class="tiny muted">${boss?"Boss · needs a perfect day":cur?"Clear today's quests to climb":done?"":"Locked"}</div></span><span>${boss?ico("crown","","color:#ff8fa0"):done?ico("check","","color:#8fc1ff"):""}</span></div>`); }
+  return `${topbar("Demon Castle","Floor "+f+" · "+(c.bosses||0)+" bosses defeated",true)}
+  <div class="stack">
+  <section class="card violet"><div class="xp-row" style="margin:0 0 6px"><span>PROGRESS</span><span class="num">${Math.min(f,100)} / 100</span></div><div class="bar violet thick"><i style="width:${Math.min(100,f)}%"></i></div>
+    <p class="tiny" style="margin:10px 0 0;color:#d6c8ff">Each cleared day climbs one floor, and a perfect day climbs two. Every 10th floor is a boss that only falls on a perfect day. Bosses drop +200 XP, +150 G, a potion and a chest.${f>=100?" You conquered the castle. The Abyss continues upward.":""}</p></section>
+  <div class="tower">${rows.join("")}</div>
+  </div>`;
+}
+function vSkills(){
+  return `${topbar("Skills","Unlock by playing. Level up by using.",true)}
+  <div class="stack">
+  <div><div class="xp-row" style="margin:0 0 4px"><span>MANA</span><span class="num">${S.mp||0} / ${maxMp()} MP</span></div><div class="bar mpbar thick"><i style="width:${Math.round((S.mp||0)/maxMp()*100)}%"></i></div>
+    <p class="tiny muted" style="margin:6px 0 0">MP refills when you clear your daily quest and +${skillOn("mana")?15:10} for each quest. Max MP grows with Intelligence.</p></div>
+  ${SKILLS.map(k=>{ const on=skillOn(k.id), p=k.prog(S), st=S.skills[k.id]||{}, lv=skillLv(k.id), h=S.history[today()]||{}, active=h.fx&&((k.id==="sprint"&&h.fx.sprint)||(k.id==="bloodlust"&&h.fx.bloodlust&&!h.fx.bloodUsed)||(k.id==="aura"&&h.fx.aura&&!h.fx.auraUsed)||(k.id==="stealth"&&h.fx.stealth)||(k.id==="authority"&&h.fx.authority));
+    let btn=""; if(k.type==="Active"&&on){ const ready=skillReady(k); btn=`<button class="btn violet sm" data-act="useskill" data-id="${k.id}" ${ready&&!active?"":"disabled"}>${active?"Active today":ready?"Use · "+k.cost+" MP":(S.mp||0)<k.cost?"Need "+k.cost+" MP":"Cooling down"}</button>`; }
+    return `<section class="card skill${on?"":" locked"}"><div class="si">${ico(on?k.icon:"lock")}</div><div style="min-width:0">
+      <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><span class="nm">${k.name}</span><span class="tiny" style="color:#c8a9ff;font-family:var(--f-ui);letter-spacing:.1em">${k.type.toUpperCase()}${on?" · LV "+lv:""}</span></div>
+      <div class="small" style="margin:2px 0 6px">${skillText(k)}</div>
+      ${on?(k.type==="Active"?`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="tiny muted">Used ${st.uses||0} times${lv<5?" · Lv "+(lv+1)+" at "+(lv*5)+" uses":" · max level"}</span>${btn}</div>`:`<span class="tiny" style="color:#8fc1ff">Always active</span>`)
+        :`<div class="tiny muted">Unlock: ${k.unlock}</div><div class="bar violet" style="margin-top:6px"><i style="width:${Math.round(p[0]/p[1]*100)}%"></i></div>`}
+    </div></section>`; }).join("")}
+  </div>`;
+}
 function vProfile(){
   const pct=S.xp/need(S.level), r=rankOf(S.level), totalQuests=Object.values(S.counts||{}).reduce((a,b)=>a+b,0);
   const q=QUOTES[(parseDay(today()).getDate()+2)%QUOTES.length];
@@ -1285,6 +1489,7 @@ function openLoot(bonus){
   const missing=Object.keys(ITEMS).filter(k=>!S.items.includes(k));
   if(r<.10&&missing.length){ const k=missing[Math.floor(Math.random()*missing.length)]; S.items.push(k); artKey=k; res={t:ITEMS[k].name,d:Object.entries(ITEMS[k].bonus).map(([s,v])=>"+"+v+" "+s).join(" · ")+" permanently"}; note("loot","Rare item found",ITEMS[k].name,"gold"); }
   else if(r<.18){ S.potions++; artKey="potion"; res={t:"Status Recovery potion",d:"Cancels one penalty."}; }
+  else if(r<.33){ S.keys=(S.keys||0)+1; artKey="key"; res={t:"Dungeon key",d:"Opens an instant dungeon in Gates."}; }
   else if(r<.45){ const x=gain(30+Math.floor(Math.random()*51)); res={t:"+"+x+" bonus XP",d:"Experience added."}; }
   else { const g=50+Math.floor(Math.random()*101); S.gold+=g; artKey="chest"; res={t:"+"+g+" Gold",d:"Spend it in the Store."}; }
   log("Loot box: "+res.t);
@@ -1299,7 +1504,7 @@ function openLoot(bonus){
   commit();
 }
 function ovMenu(){
-  const items=[["status","user","Status"],["quests","quests","Quests"],["inventory","bag","Inventory"],["stats","stats","Stats"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"],["friends","users","Friends"],["profile","user","Profile"]];
+  const items=[["status","user","Status"],["skills","bolt","Skills"],["stats","stats","Stats"],["castle","crown","Castle"],["friends","users","Friends"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"],["profile","user","Profile"]];
   const cx=170, cy=178, R=136;
   document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg"><div class="radial">
     <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 340 410" aria-hidden="true"><circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(110,160,255,.25)" stroke-dasharray="2 6"/><circle cx="${cx}" cy="${cy}" r="${R-40}" fill="none" stroke="rgba(110,160,255,.12)"/></svg>
@@ -1316,12 +1521,12 @@ function ovSheet(html){ document.getElementById("ov").innerHTML=`<div class="ove
 function render(){
   const app=document.getElementById("app"), nav=document.getElementById("nav");
   if(!S){ nav.hidden=true; fx.mode="gate"; app.innerHTML=vAwaken(); return; }
-  nav.hidden=false;
-  const tabOf={home:"home",quests:"quests",stats:"stats",inventory:"inventory"};
+  nav.hidden=screen==="run";
+  const tabOf={home:"home",quests:"quests",gates:"gates",run:"gates",castle:"gates",inventory:"inventory"};
   nav.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",tabOf[screen]===b.dataset.nav||(!tabOf[screen]&&b.dataset.nav==="menu"));
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
-  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends}[screen]||vHome;
+  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills}[screen]||vHome;
   app.innerHTML=V();
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
@@ -1334,7 +1539,7 @@ document.addEventListener("click",e=>{
   const b=e.target.closest("[data-act]"); if(!b||b.disabled) return;
   const a=b.dataset.act, id=b.dataset.id;
   if(a==="ov-bg"&&e.target!==b) return;
-  if(a!=="buy") ui.pendingBuy=null; if(a!=="reset") ui.pendingReset=false;
+  if(a!=="buy") ui.pendingBuy=null; if(a!=="reset") ui.pendingReset=false; if(a!=="retreat") ui.pendingRetreat=false;
   switch(a){
     case "accept": { const nm=(document.getElementById("onbName")||{}).value; S=fresh(); if(nm&&nm.trim()) S.name=nm.trim().slice(0,24); } note("quest","System notice","Your daily quests have been generated."); log("Accepted the System."); checkAch(true); commit(); toast("System","Welcome, Player. Your daily quests have been generated.","","bolt"); break;
     case "go": if(b.dataset.to==="allocate") ui.alloc=null; go(b.dataset.to); break;
@@ -1347,6 +1552,10 @@ document.addEventListener("click",e=>{
     case "netshare": { const c=S.net&&S.net.code; if(!c) break; const txt="Join me in the Player System, a Solo Leveling-style habit app. Install it: "+NET.apk+" — then open More → Friends and add my hunter code: "+c; if(hasA("share")) Android.share(txt); else { try{ navigator.clipboard.writeText(txt); toast("Invite copied","Paste it into WhatsApp","","share"); }catch(e){} } break; }
     case "unfriend": if(ui.pendingUnfriend!==id){ ui.pendingUnfriend=id; render(); break; } (async()=>{ try{ await rpc("ps_remove_friend",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); ui.friendSel=null; ui.pendingUnfriend=null; await netBoard(); toast("Friends","Friend removed.","","users"); }catch(e){ ui.netErr=netErr(e); render(); } })(); break;
     case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
+    case "useskill": useSkill(id); break;
+    case "urgentdone": completeUrgent(); break;
+    case "startrun": startRun(id); break;
+    case "retreat": if(!ui.pendingRetreat){ ui.pendingRetreat=true; render(); break; } ui.pendingRetreat=false; endRun(false,"You retreated from the dungeon. The key is lost."); break;
     case "setpage": ui.setPage=b.dataset.t; ui.editQ=null; render(); window.scrollTo(0,0); break;
     case "notes": go("notes"); break;
     case "done": completeQuest(id,b.dataset.back&&canBackfill()?addDay(today(),-1):null); break;
@@ -1385,6 +1594,7 @@ document.addEventListener("click",e=>{
     case "trial": if(S.level<25||S.job!=="None") break; S.jobTrial=today(); note("shadow","Job change quest","Clear every quest at 1.5× targets before the day resets.","violet"); toast("Job change quest","Clear every quest at 1.5× targets today.","violet","ghost"); commit(); go("quests"); break;
     case "arise": { if(S.job==="None"||S.shadows.some(s=>s.habit===id)) break; const name=SHADOW_NAMES[S.shadows.length]; if(!name) break; S.shadows.push({name,habit:id,since:today()}); note("shadow","Arise",name+" joined your shadow army.","violet"); fx.mode="burst"; setTimeout(setScene,1600); toast("Arise",name+" has joined your shadow army.","violet","ghost"); haptic(150); commit(); break; }
     case "buy": {
+      if(id==="key"){ if(S.gold<150) break; S.gold-=150; S.keys=(S.keys||0)+1; toast("Store","Dungeon key added.","gold","chest"); commit(); break; }
       if(id==="potion"){ if(S.gold<500) break; S.gold-=500; S.potions++; toast("Store","Status Recovery potion added.","gold","potion"); commit(); break; }
       const r=S.rewards.find(r=>r.id===id); if(!r||S.gold<r.cost) break;
       if(ui.pendingBuy!==id){ ui.pendingBuy=id; render(); break; }
