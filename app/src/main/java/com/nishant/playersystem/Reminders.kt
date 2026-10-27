@@ -45,6 +45,16 @@ object Reminders {
         alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, 204, "run"))
     }
 
+    fun scheduleSessionEnd(context: Context, at: Long) {
+        val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, at, pending(context, 206, "session"))
+    }
+
+    fun cancelSessionEnd(context: Context) {
+        val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        alarm.cancel(pending(context, 206, "session"))
+    }
+
     fun cancelRunEnd(context: Context) {
         val alarm = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarm.cancel(pending(context, 204, "run"))
@@ -83,6 +93,12 @@ object Reminders {
         if (kind == "run") {
             if (s.optJSONObject("run") == null) return
             post(context, "dungeon", "Dungeons", 4, "[System] Dungeon cleared", "The boss has fallen. Return to the app to claim your rewards.")
+            return
+        }
+        if (kind == "session") {
+            val ss = s.optJSONObject("session") ?: return
+            val name = if (ss.optString("id") == "train") "Training" else "Deep work"
+            post(context, "session", "Quest sessions", 6, "[System] $name session complete", "Return to the app to claim your full XP.")
             return
         }
         if (kind == "slot") {

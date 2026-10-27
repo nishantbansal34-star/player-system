@@ -1,0 +1,16 @@
+{
+  "name": "player-system-web",
+  "private": true,
+  "scripts": {
+    "build": "node build.js && cp dist/android-index.html ../app/src/main/assets/index.html",
+    "test": "node tests/regression.js"
+  },
+  "dependencies": {
+    "@fontsource/barlow": "^5.0.0",
+    "@fontsource/chakra-petch": "^5.0.0",
+    "@fontsource/cinzel": "^5.0.0"
+  },
+  "devDependencies": {
+    "playwright": "^1.40.0"
+  }
+}

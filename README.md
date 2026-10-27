@@ -13,3 +13,8 @@ Installing a newer build over the old one keeps your progress (every build is si
 - `app/src/main/assets/index.html` — the whole app UI and game logic (runs offline in a WebView).
 - `SystemWidget.kt` + `Logic.kt` — the widget and the rules it needs (complete a quest, roll over at midnight).
 - Every push to `main` builds the APK with GitHub Actions and attaches it to a new release.
+
+## Web app source and tests
+- `web/src/app.html` is the whole app UI and game logic. `npm run build` (in `web/`) embeds fonts and copies the result into the Android assets.
+- `npm test` runs the Playwright regression suite (28 checks: navigation, completion, minimums, timers, XP, levels, boss HP and rewards, duplicates, resets, streaks, inventory, persistence, network errors, small-screen layout).
+- Artwork slots and prompts: see `ART_BRIEF.md`.

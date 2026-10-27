@@ -59,6 +59,12 @@ class Bridge(private val activity: MainActivity) {
     fun cancelRunEnd() { Reminders.cancelRunEnd(activity) }
 
     @JavascriptInterface
+    fun scheduleSessionEnd(at: Double) { Reminders.scheduleSessionEnd(activity, at.toLong()) }
+
+    @JavascriptInterface
+    fun cancelSessionEnd() { Reminders.cancelSessionEnd(activity) }
+
+    @JavascriptInterface
     fun listSnapshots(): String = JSONArray(Store.listSnapshots(activity)).toString()
 
     @JavascriptInterface

@@ -32,6 +32,8 @@ class MainActivity : Activity() {
         web.setBackgroundColor(Color.parseColor("#03050D"))
         web.settings.javaScriptEnabled = true
         web.settings.domStorageEnabled = true
+        // Respect the phone's text size setting (capped so layouts stay usable).
+        web.settings.textZoom = (resources.configuration.fontScale * 100).toInt().coerceIn(85, 130)
         web.addJavascriptInterface(Bridge(this), "Android")
         web.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
