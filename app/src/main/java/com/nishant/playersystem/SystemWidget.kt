@@ -118,7 +118,8 @@ class SystemWidget : AppWidgetProvider() {
             v.setTextViewText(R.id.rank, Logic.rankOf(level))
             v.setTextViewText(R.id.streak, s.optInt("streak").toString())
             v.setProgressBar(R.id.xp, 100, (xp * 100 / need).coerceIn(0, 100), false)
-            v.setTextViewText(R.id.xptext, "$xp / $need XP  ·  $done/${ids.size} today")
+            val haste = Logic.haste(s)
+            v.setTextViewText(R.id.xptext, "$xp / $need XP  ·  $done/${ids.size} today" + (if (haste > 1 && done < ids.size) "  ·  HASTE ×$haste" else ""))
 
             showCells(v, count)
             for (i in 0 until count) {

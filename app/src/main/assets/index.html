@@ -298,6 +298,19 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .floor.done{opacity:.5}
 .floor.boss{border-color:rgba(255,79,102,.55);background:linear-gradient(90deg,rgba(90,10,30,.55),rgba(20,8,30,.6))}
 .floor .fn{font-family:var(--f-display);font-weight:700;font-size:18px;text-align:center;color:#e3d6ff}
+.boss-card{position:relative;overflow:hidden}
+.boss-card .bhp{height:12px;border-radius:6px;background:rgba(255,79,102,.15);overflow:hidden;border:1px solid rgba(255,120,140,.35)}
+.boss-card .bhp i{display:block;height:100%;background:linear-gradient(90deg,#b0142f,#ff6b80);box-shadow:0 0 12px rgba(255,79,102,.8);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.boss-card.rage{border-color:rgba(255,79,102,.65);box-shadow:0 0 28px rgba(255,79,102,.3)}
+.boss-card.down{border-color:rgba(245,187,76,.55)}
+.chips2{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.mchip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:99px;font-family:var(--f-ui);font-weight:700;font-size:12px;letter-spacing:.06em}
+.mchip.haste{color:#7afcff;background:rgba(54,209,255,.12);border:1px solid rgba(122,252,255,.45);box-shadow:0 0 12px rgba(54,209,255,.25)}
+.mchip.combo{color:#ffd57a;background:rgba(245,187,76,.12);border:1px solid rgba(245,187,76,.5);box-shadow:0 0 12px rgba(245,187,76,.3)}
+.mchip.risk{color:#ff9aaa;background:rgba(255,79,102,.12);border:1px solid rgba(255,79,102,.5)}
+.nextup{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,140,160,.2)}
+.minbtn{font-family:var(--f-ui);font-size:11px;letter-spacing:.08em;color:#9cc3ff;text-transform:uppercase;text-align:left;grid-column:2/-1;margin-top:-4px}
+.slot{font-family:var(--f-ui);font-size:11px;color:#9cc3ff;border:1px solid var(--line);border-radius:6px;padding:0 5px;margin-left:6px}
 /* heatmap + charts */
 .heat{display:flex;gap:3px;width:max-content}
 .heat span{display:flex;flex-direction:column;gap:3px}
@@ -696,7 +709,7 @@ function fresh(){
   return {v:2,name:"Nishant",startDate:t,lastSeen:t,level:1,xp:0,statPoints:0,
     stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:0,potions:0,streak:0,bestStreak:0,totalDays:0,perfectDays:0,
     job:"None",title:"Awakened",ach:[],items:[],counts:{},penalty:null,jobTrial:null,flags:{},
-    settings:{difficulty:"normal",restDay:0,dayStart:0,remindOn:true,remindAM:"08:00",remindPM:"21:00"},
+    settings:{difficulty:"normal",restDay:0,dayStart:0,remindOn:true,remindAM:"08:00",remindPM:"21:00",nag:true,sound:true,slots:{train:"07:30",deep:"10:00",walk:"18:30",read:"21:30",water:"",disc:"22:30"}},
     quests:JSON.parse(JSON.stringify(BASE_QUESTS)),mp:100,skills:{},keys:1,urgent:{},run:null,castle:{floor:0},runsDone:0,urgentDone:0,freezes:0,pause:null,weekly:{},bonusLoot:0,body:[],archive:{},totalXp:0,
     rewards:[{id:"r1",name:"Cheat meal",cost:400},{id:"r2",name:"Movie or series night",cost:250},{id:"r3",name:"Something new under ₹1,000",cost:900}],
     history:{},shadows:[],log:[],notes:[],notesSeen:0,pendingLevelUp:null};
@@ -708,7 +721,7 @@ function migrate(d){
     if(!Array.isArray(m.quests)||!m.quests.length) m.quests=JSON.parse(JSON.stringify(BASE_QUESTS));
     if(!m.totalXp) m.totalXp=Object.values(m.history||{}).reduce((a,h)=>a+((h&&h.xp)||0),0);
     ["weekly","archive","skills","urgent"].forEach(k=>{ if(!m[k]||typeof m[k]!=="object") m[k]={}; }); if(!Array.isArray(m.body)) m.body=[];
-    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
+    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(!m.settings.slots) m.settings.slots=fresh().settings.slots; if(m.settings.nag==null) m.settings.nag=true; if(m.settings.sound==null) m.settings.sound=true; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
     return m; }
   ["name","startDate","lastSeen","level","xp","gold","potions","streak","bestStreak","totalDays","rewards","statPoints"].forEach(k=>{ if(d[k]!=null) s[k]=d[k]; });
   if(d.stats){ s.stats={STR:d.stats.STR||10,VIT:d.stats.VIT||10,INT:d.stats.INT||10,AGI:d.stats.AGI||10,FOC:d.stats.PER||10,DIS:10}; }
@@ -785,23 +798,59 @@ function afterQuest(h,k){
     note("quest","Daily quest cleared","+3 stat points. A loot box is waiting in Quests.");
     log("Daily quest cleared (streak "+S.streak+")");
   }
-  if(n>=Q().length && !h.perfect){
+  if(n>=Q().length && !h.perfect && !minsUsed(h)){
     h.perfect=true; S.perfectDays++; const x=gain(30,k); S.gold+=20;
     toast("Perfect clear","All quests · +"+x+" XP · +20 G","gold","star");
     if(S.jobTrial===k){ S.jobTrial=null; S.job="Necromancer"; note("shadow","Job change complete","You are now a Necromancer. ARISE is unlocked.","violet"); log("Job change: Necromancer"); setTimeout(()=>toast("Job change","You are now a Necromancer. ARISE unlocked.","violet","ghost"),700); }
   }
 }
+// ---- motivation engine: haste, combo, minimums, boss, sound ----
+const MINI={train:"5 minutes of any exercise",walk:"Walk for 10 minutes",read:"Read 1 page",deep:"15 minutes of focused work",water:"Drink 2 glasses of water now",disc:"No social media in bed tonight"};
+const miniText=q=>MINI[q.id]&&q.kind==="auto"?MINI[q.id]:"2 minutes of it";
+const MAX_MIN=2;
+const BOSS_NAMES=["Stone Golem","Frost Wyrm","Iron Ogre","Alpha Shadow Wolf","Venom Arachnid","Flame Salamander","Lich Acolyte","Cave Troll","Storm Harpy","Bone Knight"];
+const dayBoss=k=>BOSS_NAMES[Math.floor(seeded("boss"+k)()*BOSS_NAMES.length)];
+function hourNow(ts){ const d=new Date(ts||Date.now()); let hr=d.getHours()+d.getMinutes()/60; if(hr<dayStartH()) hr+=24; return hr; }
+function hasteAt(ts){ const hr=hourNow(ts); return hr<10?1.5:hr<13?1.3:hr<18?1.15:1; }
+function hasteNext(){ const hr=hourNow(), b=[10,13,18].find(x=>hr<x); if(!b) return null; const d=new Date(); d.setHours(b,0,0,0); return {at:d.getTime(),next:b===10?1.3:b===13?1.15:1}; }
+const comboLive=()=>S.lastDoneAt&&Date.now()-S.lastDoneAt<=20*60000;
+const comboMult=()=>1+.1*Math.min(3,comboLive()?(S.combo||0)+1:0);
+const minsUsed=h=>Object.keys((h&&h.min)||{}).length;
+function slotOf(id){ return ((S.settings.slots||{})[id])||""; }
+function nextUp(){ const k=today(), h=S.history[k]||{q:{}}; const p=planFor(k).filter(q=>!h.q[q.id]); p.sort((a,b)=>(slotOf(a.id)||"99")<(slotOf(b.id)||"99")?-1:1); return p[0]||null; }
+let AC=null;
+function sfx(kind){
+  if(!S||S.settings.sound===false) return;
+  try{ AC=AC||new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==="suspended") AC.resume(); const t=AC.currentTime;
+    const tone=(f,st,d,type,vol)=>{ const o=AC.createOscillator(), g=AC.createGain(); o.type=type||"sine"; o.frequency.setValueAtTime(f,t+st); g.gain.setValueAtTime(0,t+st); g.gain.linearRampToValueAtTime(vol||.14,t+st+.012); g.gain.exponentialRampToValueAtTime(.0001,t+st+d); o.connect(g); g.connect(AC.destination); o.start(t+st); o.stop(t+st+d+.05); };
+    if(kind==="done"){ tone(880,0,.2); tone(1320,.08,.35); }
+    if(kind==="combo"){ tone(988,0,.12,"triangle"); tone(1318,.07,.12,"triangle"); tone(1760,.14,.35,"triangle"); }
+    if(kind==="boss"){ tone(98,0,.6,"sawtooth",.18); tone(196,.05,.7,"square",.06); [523,784,1046].forEach((f,i)=>tone(f,.3+i*.1,.6,"triangle",.12)); }
+    if(kind==="level"){ [523,659,784,1046,1318].forEach((f,i)=>tone(f,i*.1,.6,"triangle",.13)); }
+    if(kind==="start"){ tone(440,0,.15,"triangle"); tone(660,.1,.25,"triangle"); }
+    if(kind==="tick"){ tone(1200,0,.06,"square",.05); }
+  }catch(e){}
+}
 function canBackfill(){ const y=addDay(today(),-1); const hr=new Date().getHours(); const h=S.history[y]; return hr<12 && y>S.startDate && !(h&&h.cleared) && !(h&&h.paused); }
-function completeQuest(id,dayK){
+function completeQuest(id,dayK,opt){
   const k=dayK||today(), h=rec(k); if(h.q[id]) return;
-  const q=qById(id); if(!q) return;
+  const q=qById(id); if(!q) return; opt=opt||{};
+  if(opt.min&&minsUsed(h)>=MAX_MIN){ toast("Minimum limit","You can use the minimum version on 2 quests a day.","red","x"); return; }
   undoSnap=JSON.stringify(S);
   h.q[id]=true; S.counts[id]=(S.counts[id]||0)+1; S.gold+=10;
-  let base=q.xp; if(k===today()&&h.fx&&h.fx.bloodlust&&!h.fx.bloodUsed){ base=Math.round(base*h.fx.bloodlust); h.fx.bloodUsed=true; }
-  const x=gain(base,k);
+  if(opt.min){ h.min=h.min||{}; h.min[id]=true; }
+  const live=k===today(); let base=q.xp, hm=1, cm=1;
+  if(live){ hm=hasteAt(); if(comboLive()){ S.combo=Math.min(3,(S.combo||0)+1); } else S.combo=0; cm=1+.1*S.combo; S.lastDoneAt=Date.now(); h.doneAt=h.doneAt||{}; h.doneAt[id]=Date.now(); }
+  base=base*hm*cm*(opt.min?.4:1);
+  if(live&&h.fx&&h.fx.bloodlust&&!h.fx.bloodUsed){ base=base*h.fx.bloodlust; h.fx.bloodUsed=true; }
+  const x=gain(Math.round(base),k);
   S.mp=Math.min(maxMp(),(S.mp||0)+(skillOn("mana")?15:10));
-  haptic(25);
-  toast(k===today()?"Quest complete":"Logged for yesterday",q.name+" · +"+x+" XP · +10 G","",q.icon,true);
+  haptic(cm>1?45:25); sfx(cm>1?"combo":"done");
+  const extra=[hm>1?"Haste ×"+hm:"",cm>1?"Combo ×"+cm.toFixed(1):"",opt.min?"Minimum":""].filter(Boolean).join(" · ");
+  toast(live?(cm>1?"Combo ×"+cm.toFixed(1):"Quest complete"):"Logged for yesterday",q.name+" · +"+x+" XP"+(extra?" · "+extra:""),cm>1?"gold":"",q.icon,true);
+  if(live&&doneCount(h)>=Q().length&&!h.bossDown){ h.bossDown=true; const hr=hourNow(); let bonus="";
+    if(hr<13){ S.bonusLoot=(S.bonusLoot||0)+1; bonus="Swift kill before 1 PM · bonus chest"; } else if(hr<18){ S.gold+=50; bonus="Killed before 6 PM · +50 G"; } else bonus="Defeated";
+    setTimeout(()=>{ sfx("boss"); fx.mode="burst"; toast("Gate boss defeated",dayBoss(k)+" · "+bonus,"gold","crown"); setTimeout(setScene,1500); },700); }
   const wasCleared=!!h.cleared;
   afterQuest(h,k);
   if(k!==today() && !wasCleared && h.cleared){
@@ -902,6 +951,9 @@ function tick(){
   if(!S) return;
   if(processDays()){ commit(); return; }
   const c=document.getElementById("clock"); if(c) c.textContent=untilMidnight();
+  if(ui.startQ){ const left=Math.max(0,ui.startEnd-Date.now()); const sc=document.getElementById("sclock"); if(sc){ sc.textContent=Math.floor(left/60000)+":"+pad(Math.floor(left%60000/1000)); if(left===0&&!ui.startRang){ ui.startRang=true; sfx("level"); haptic(200); const m=document.getElementById("smsg"); if(m) m.textContent="Two minutes done. Keep going, or mark it done when you finish."; } } }
+  const hc=document.getElementById("hclock"); if(hc){ const hn=hasteNext(); if(!hn||hn.at<=Date.now()) render(); else { const l=hn.at-Date.now(); hc.textContent=pad(Math.floor(l/3600000))+":"+pad(Math.floor(l%3600000/60000))+":"+pad(Math.floor(l%60000/1000)); } }
+  const cc=document.getElementById("cclock"); if(cc){ if(!comboLive()) render(); else { const l=S.lastDoneAt+20*60000-Date.now(); cc.textContent=pad(Math.floor(l/60000))+":"+pad(Math.floor(l%60000/1000)); } }
   if(S.run){ if(Date.now()>=S.run.endsAt&&!S.run.left){ endRun(true); return; }
     const rc=document.getElementById("runclock"); if(rc&&screen==="run"){ const d=DUNGEONS.find(x=>x.id===S.run.id); const left=Math.max(0,S.run.endsAt-Date.now()); rc.textContent=pad(Math.floor(left/60000))+":"+pad(Math.floor(left%60000/1000)); if(Math.floor(Date.now()/1000)%15===0) render(); } }
   const uc=document.getElementById("uclock"); if(uc){ const u=urgentNow(); if(!u){ render(); } else { const left=u.at+u.dur-Date.now(); uc.textContent=pad(Math.floor(left/60000))+":"+pad(Math.floor(left%60000/1000)); } }
@@ -964,10 +1016,11 @@ function vHome(){
     ${updateCard()}
     ${urgentCard()}
     ${penaltyCard()}
+    ${bossCard()}
     <section class="card hot">
       <div class="sec-h"><h2>Today's quests <span class="muted num" style="font-weight:500">${n}/${N}</span></h2><button class="tiny muted" data-act="go" data-to="quests" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</button></div>
       <div class="orbs">${plan.map(x=>{ const d=!!h.q[x.id]; return `<button class="orb${d?" done":""}" data-act="${d?"go":"done"}" data-to="quests" data-id="${x.id}" aria-label="${d?"Completed: ":"Complete "}${esc(x.name)}">
-        <span class="ball" style="color:${x.c}">${ico(x.icon)}${d?`<span class="tick">${ico("check")}</span>`:""}</span><span class="on">${esc(SHORT[x.id]&&x.name===qById(x.id).name&&x.kind==="auto"?SHORT[x.id]:x.name)}</span><span class="ox">+${Math.round(x.xp*mult())} XP</span></button>`; }).join("")}</div>
+        <span class="ball" style="color:${x.c}">${ico(x.icon)}${d?`<span class="tick">${ico("check")}</span>`:""}</span><span class="on">${esc(SHORT[x.id]&&x.name===qById(x.id).name&&x.kind==="auto"?SHORT[x.id]:x.name)}</span><span class="ox">+${Math.round(x.xp*mult()*(d?1:hasteAt()*comboMult()))} XP</span></button>`; }).join("")}</div>
       <div class="progress-line" style="margin-top:12px"><span>${S.pause?"Pause mode · no penalties":h.cleared?(h.perfect?"Perfect clear":"Cleared · "+(N-n)+" to perfect"):"Clear "+Math.max(0,CA-n)+" more to stay safe"}</span><span>Resets in <span class="num" id="clock">${untilMidnight()}</span></span></div>
       ${h.cleared&&!h.lootOpened?`<button class="btn wide" style="margin-top:12px" data-act="loot">${ico("chest")}Claim rewards</button>`:""}
     </section>
@@ -1022,14 +1075,16 @@ function vQuests(){
   <div class="stack">
   ${qTabs(back?"yesterday":"today")}
   ${S.pause?`<section class="card violet" style="display:flex;gap:12px;align-items:center">${ico("moon","","color:#c8a9ff")}<div style="flex:1"><div class="label" style="color:#c8a9ff">Pause mode</div><div class="small">No penalties while paused. Quests you do still count.</div></div><button class="btn violet sm" data-act="unpause">Resume</button></section>`:""}
+  ${back?"":motivationChips()}
   ${back?"":urgentCard()}
   ${back?"":penaltyCard()}
   ${plan.map(q=>{ const d=!!h.q[q.id];
     return `<section class="card quest${d?" done":""}">
       <div class="qicon" style="color:${q.c}">${ico(q.icon)}</div>
-      <div style="min-width:0"><div class="qname">${esc(q.name)}</div><div class="qdetail">${esc(q.detail)}</div></div>
-      <div class="qxp">+${Math.round(q.xp*mult())} XP</div>
+      <div style="min-width:0"><div class="qname">${esc(q.name)}${slotOf(q.id)&&!back?`<span class="slot">${slotOf(q.id)}</span>`:""}</div><div class="qdetail">${esc(q.detail)}${h.min&&h.min[q.id]?" · minimum":""}</div></div>
+      <div class="qxp">+${Math.round(q.xp*mult()*(back?1:hasteAt()*comboMult()))} XP</div>
       <button class="qcheck" data-act="${d?"":"done"}" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?"Completed":"Complete "+esc(q.name)}" ${d?"disabled":""}>${ico("check")}</button>
+      ${!d&&!back?`<button class="minbtn" data-act="donemin" data-id="${q.id}" ${minsUsed(h)>=MAX_MIN?"disabled style='opacity:.35'":""}>Minimum: ${esc(miniText(q))} · 40% XP</button>`:""}
       ${q.drills?`<button class="tiny muted" data-act="drill" style="grid-column:1/-1;text-align:left;font-family:var(--f-ui);letter-spacing:.1em;text-transform:uppercase">${ui.openDrill?"Hide":"Show"} today's ${q.split==="Mobility"?"stretches":"exercises"} ▾</button>
         ${ui.openDrill?`<div class="drill"><b>${q.split==="Mobility"?"Mobility & stretch":q.split+" day"}</b> · home, chin-up bar and floor<ul>${q.drills.map(x=>`<li>${esc(x[0])} — <span class="num">${esc(x[1])}</span></li>`).join("")}</ul></div>`:""}`:""}
     </section>`;}).join("")}
@@ -1200,6 +1255,7 @@ function vSettings(){
   const rows=[["profile","user","Profile",esc(S.name)],["quests","quests","Your quests",Q().length+" active · clear "+clearAt()],
     ...(A?[["remind","bell","Quest reminders",st.remindOn?st.remindAM+" · "+st.remindPM:"Off"]]:[]),
     ["game","target","Gameplay",st.difficulty[0].toUpperCase()+st.difficulty.slice(1)+" · resets "+(st.dayStart?st.dayStart+" AM":"midnight")],
+    ["times","bell","Quest times",Q().filter(q=>slotOf(q.id)).length+" planned"],
     ["pause","moon","Pause & shields",(S.pause?"Paused":"Active")+" · "+(S.freezes||0)+"/2 shields"],
     ["data","bag","Data & backup",A?"Backup file, snapshots":"Backup code"],
     ...(A?[["about","refresh","About & updates","Build "+Android.versionCode()]]:[]),
@@ -1212,7 +1268,7 @@ function vSettingsFull(){
   const st=S.settings, A=!!window.Android;
   const qs=S.quests, on=qs.filter(q=>q.enabled!==false).length;
   const ed=ui.editQ?qs.find(q=>q.id===ui.editQ):null;
-  const TITLES={quests:"Your quests",profile:"Profile",game:"Gameplay",remind:"Reminders",pause:"Pause & shields",data:"Data & backup",about:"About",reset:"Reset"};
+  const TITLES={times:"Quest times",quests:"Your quests",profile:"Profile",game:"Gameplay",remind:"Reminders",pause:"Pause & shields",data:"Data & backup",about:"About",reset:"Reset"};
   const html=`
   <section class="card" data-sec="quests"><div class="label">Your quests</div>
     <p class="tiny muted" style="margin:4px 0 4px">${on} active · clear ${clearAt()} each day. Turn quests off or set your own targets as life changes.</p>
@@ -1238,6 +1294,11 @@ function vSettingsFull(){
   ${A?`<section class="card stack" data-sec="remind"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="label">Reminders</div><div class="tiny muted">Morning quest notice and an evening warning if you're behind.</div></div><button class="toggle ${st.remindOn?"on":""}" data-act="remind" aria-label="Reminders"></button></div>
     ${st.remindOn?`<div class="form-row"><div class="field" style="flex:1"><label class="label" for="remAM">Morning</label><input id="remAM" type="time" value="${esc(st.remindAM)}"></div><div class="field" style="flex:1"><label class="label" for="remPM">Evening warning</label><input id="remPM" type="time" value="${esc(st.remindPM)}"></div></div>`:""}
   </section>`:""}
+  <section class="card stack" data-sec="times"><p class="small muted" style="margin:0">Give each quest a time. Your phone reminds you then ("Start now for ×1.5 XP"), and Next Up follows this order. Leave a time empty to skip its reminder.</p>
+    ${Q().map(q=>`<div class="lrow"><span style="color:${q.c}">${ico(q.icon)}</span><span class="grow">${esc(q.name)}</span><input type="time" id="slot_${q.id}" value="${esc(slotOf(q.id))}" style="background:rgba(3,6,18,.8);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink)"></div>`).join("")}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px"><div><div class="label">Extra reminders when behind</div><div class="tiny muted">1 PM, 5 PM, your evening time and 10:30 PM, only if you haven't cleared yet.</div></div><button class="toggle ${S.settings.nag!==false?"on":""}" data-act="nagtoggle" aria-label="Extra reminders"></button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Sound effects</div><div class="tiny muted">System chimes, combo and boss sounds.</div></div><button class="toggle ${S.settings.sound!==false?"on":""}" data-act="soundtoggle" aria-label="Sound effects"></button></div>
+  </section>
   <section class="card stack" data-sec="pause"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Pause mode</div><div class="tiny muted">Travelling or unwell? No penalties and your streak waits for you.</div></div><button class="toggle ${S.pause?"on":""}" data-act="${S.pause?"unpause":"pause"}" aria-label="Pause mode"></button></div>
     <div class="tiny muted">Streak shields: <b style="color:var(--gold)">${S.freezes||0}/${maxShields()}</b>. You earn one every 7-day streak; each absorbs one missed day automatically.</div></section>
   <section class="card stack" data-sec="data"><div class="label">Backup</div>
@@ -1337,6 +1398,40 @@ function friendsCard(){
   const rows=boardSorted().slice(0,3);
   return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0"><div class="sec-h" style="margin-bottom:4px"><h2>This week's leaderboard</h2><span class="tiny muted" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</span></div>
     ${rows.length?rows.map(boardRow).join(""):`<p class="tiny muted" style="margin:6px 0">Loading…</p>`}</section>`;
+}
+function motivationChips(){
+  const hn=hasteNext(), h=hasteAt(); const out=[];
+  if(h>1&&hn){ const left=hn.at-Date.now(); out.push(`<span class="mchip haste">${ico("bolt","","width:14px;height:14px")}HASTE ×${h} · <span class="num" id="hclock">${pad(Math.floor(left/3600000))}:${pad(Math.floor(left%3600000/60000))}:${pad(Math.floor(left%60000/1000))}</span></span>`); }
+  if(comboLive()){ const left=S.lastDoneAt+20*60000-Date.now(); out.push(`<span class="mchip combo">${ico("flame","","width:14px;height:14px")}NEXT ×${comboMult().toFixed(1)} · <span class="num" id="cclock">${pad(Math.floor(left/60000))}:${pad(Math.floor(left%60000/1000))}</span></span>`); }
+  const hh=S.history[today()]; if(hourNow()>=18&&!(hh&&hh.cleared)&&S.streak>0&&!S.pause) out.push(`<span class="mchip risk">${ico("flame","","width:14px;height:14px")}${S.streak}-DAY STREAK AT RISK</span>`);
+  return out.length?`<div class="chips2">${out.join("")}</div>`:"";
+}
+function bossCard(){
+  const k=today(), h=S.history[k]||{q:{}}, plan=planFor(k); if(!plan.length) return "";
+  const total=plan.reduce((a,q)=>a+q.xp,0), left=plan.filter(q=>!h.q[q.id]).reduce((a,q)=>a+q.xp,0), pct=Math.round(left/total*100), hr=hourNow();
+  const down=left===0, rage=!down&&hr>=18, nu=nextUp();
+  const status=down?(h.bossDown?"Defeated today. Rest, Player.":"Defeated."):hr<13?"Swift kill before 1 PM: bonus chest":hr<18?"Kill before 6 PM: +50 G":"ENRAGED · the day resets in <span class='num' id='clock'>"+untilMidnight()+"</span>";
+  return `<section class="card boss-card${rage?" rage":""}${down?" down":""}">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="label" style="color:${down?"var(--gold)":"#ff9aaa"}">Today's gate boss</div><span class="num tiny" style="color:#ffc9d1">${left} / ${total} HP</span></div>
+    <div style="font-family:var(--f-display);font-weight:700;font-size:20px;letter-spacing:.06em;margin:4px 0 8px">${esc(dayBoss(k))}</div>
+    <div class="bhp"><i style="width:${pct}%"></i></div>
+    <div class="tiny" style="margin-top:6px;color:${rage?"#ff9aaa":"#c7d2ee"}">${status}</div>
+    ${motivationChips()}
+    ${nu&&!S.pause?`<div class="nextup"><div class="qicon" style="color:${nu.c}">${ico(nu.icon)}</div><div style="min-width:0"><div class="tiny muted">NEXT UP${slotOf(nu.id)?" · planned "+slotOf(nu.id):""}</div><div style="font-weight:700">${esc(nu.name)}</div><div class="tiny muted">${esc(nu.detail)}</div></div>
+      <button class="btn wide" style="grid-column:1/-1" data-act="start2" data-id="${nu.id}">${ico("bolt")}Start 2 minutes · +${Math.round(nu.xp*hasteAt()*comboMult())} XP</button>
+      ${minsUsed(h)<MAX_MIN?`<button class="minbtn" style="grid-column:1/-1;text-align:center" data-act="donemin" data-id="${nu.id}">Low energy? Do the minimum: ${esc(miniText(nu))}</button>`:""}</div>`:""}
+  </section>`;
+}
+function ovStart(id){ ui.startRang=false;
+  const q=planFor(today()).find(x=>x.id===id); if(!q) return; ui.startQ=id; ui.startEnd=Date.now()+120000; sfx("start"); haptic(40);
+  document.getElementById("ov").innerHTML=`<div class="overlay"><div class="lu" style="max-width:380px">
+    <div class="t1">SYSTEM</div><div class="t2" style="font-size:22px">JUST START</div>
+    <div class="run-ring" style="width:200px;height:200px">${ring(200,0,8,"st")}<div class="ring-center"><span class="l">2 MINUTES</span><span class="n num" id="sclock" style="font-size:46px">2:00</span></div></div>
+    <div style="font-weight:700;font-size:18px">${esc(q.name)}</div><div class="small muted">${esc(q.detail)}</div>
+    <p class="small" id="smsg" style="color:#c7d2ee;margin:12px 0">Commit to two minutes only. You can stop after that. Most of the time, you won't.</p>
+    <div class="stack" style="gap:8px"><button class="btn wide" data-act="startdone" data-id="${id}">${ico("check")}I did the full quest</button>
+    ${minsUsed(S.history[today()])<MAX_MIN?`<button class="btn ghost wide" data-act="startmin" data-id="${id}">I did the minimum · ${esc(miniText(q))}</button>`:""}
+    <button class="tiny muted" style="font-family:var(--f-ui);letter-spacing:.12em" data-act="startclose">CLOSE</button></div></div></div>`;
 }
 function urgentCard(){
   const u=urgentNow(); if(!u) return "";
@@ -1468,7 +1563,7 @@ function vAwaken(){
 // ================= overlays =================
 function ovLevelUp(){
   const lu=S.pendingLevelUp; if(!lu) return;
-  fx.mode="burst"; document.getElementById("toasts").innerHTML="";
+  fx.mode="burst"; document.getElementById("toasts").innerHTML=""; sfx("level");
   document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg" style="background:rgba(2,4,12,.35)"><span class="shock"></span><span class="shock s2"></span><span class="shock s3"></span><div class="lu" style="position:relative">
     <div class="t1">SYSTEM</div><div class="t2">LEVEL UP</div>
     <div class="from num">${lu.from}</div><div class="chev">${ico("chev")}</div><div class="to num">${lu.to}</div>
@@ -1553,6 +1648,13 @@ document.addEventListener("click",e=>{
     case "unfriend": if(ui.pendingUnfriend!==id){ ui.pendingUnfriend=id; render(); break; } (async()=>{ try{ await rpc("ps_remove_friend",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); ui.friendSel=null; ui.pendingUnfriend=null; await netBoard(); toast("Friends","Friend removed.","","users"); }catch(e){ ui.netErr=netErr(e); render(); } })(); break;
     case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
     case "useskill": useSkill(id); break;
+    case "donemin": completeQuest(id,null,{min:true}); break;
+    case "start2": ovStart(id); break;
+    case "startdone": ui.startQ=null; closeOv(); completeQuest(id); break;
+    case "startmin": ui.startQ=null; closeOv(); completeQuest(id,null,{min:true}); break;
+    case "startclose": ui.startQ=null; closeOv(); render(); break;
+    case "nagtoggle": S.settings.nag=S.settings.nag===false; commit(); break;
+    case "soundtoggle": S.settings.sound=S.settings.sound===false; commit(); if(S.settings.sound) sfx("done"); break;
     case "urgentdone": completeUrgent(); break;
     case "startrun": startRun(id); break;
     case "retreat": if(!ui.pendingRetreat){ ui.pendingRetreat=true; render(); break; } ui.pendingRetreat=false; endRun(false,"You retreated from the dungeon. The key is lost."); break;
@@ -1612,6 +1714,7 @@ document.addEventListener("change",e=>{
   if(!S) return;
   if(e.target.id==="setName"){ S.name=e.target.value.trim()||"Player"; commit(); }
   if(e.target.id==="setRest"){ S.settings.restDay=Number(e.target.value); commit(); }
+  if(e.target.id&&e.target.id.startsWith("slot_")){ S.settings.slots=S.settings.slots||{}; S.settings.slots[e.target.id.slice(5)]=e.target.value||""; commit(); }
   if(e.target.id==="setDay"){ S.settings.dayStart=Number(e.target.value); S.lastSeen=today(); commit(); }
   if(e.target.id==="remAM"&&e.target.value){ S.settings.remindAM=e.target.value; commit(); }
   if(e.target.id==="remPM"&&e.target.value){ S.settings.remindPM=e.target.value; commit(); }

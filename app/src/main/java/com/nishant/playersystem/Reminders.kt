@@ -25,13 +25,19 @@ object Reminders {
         val am = pending(context, 201, "am")
         val pm = pending(context, 202, "pm")
         val urg = pending(context, 203, "urgent")
-        alarm.cancel(am); alarm.cancel(pm); alarm.cancel(urg)
+        val slot = pending(context, 205, "slot")
+        alarm.cancel(am); alarm.cancel(pm); alarm.cancel(urg); alarm.cancel(slot)
         val s = Logic.load(context) ?: return
         Logic.nextUrgentAt(s)?.let { alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it, urg) }
+        if (s.optJSONObject("settings")?.optBoolean("remindOn", true) != false) {
+            Logic.nextSlot(s)?.let { alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it.first, slot) }
+        }
         val set = s.optJSONObject("settings")
         if (set != null && !set.optBoolean("remindOn", true)) return
         at(alarm, am, set?.optString("remindAM", "08:00") ?: "08:00")
-        at(alarm, pm, set?.optString("remindPM", "21:00") ?: "21:00")
+        val pmTimes = mutableListOf(set?.optString("remindPM", "21:00") ?: "21:00")
+        if (set?.optBoolean("nag", true) != false) pmTimes.addAll(listOf("13:00", "17:00", "22:30"))
+        atEarliest(alarm, pm, pmTimes)
     }
 
     fun scheduleRunEnd(context: Context, at: Long) {
@@ -47,6 +53,18 @@ object Reminders {
     private fun pending(context: Context, code: Int, kind: String): PendingIntent {
         val i = Intent(context, ReminderReceiver::class.java).putExtra(EXTRA_KIND, kind).setAction("com.nishant.playersystem.REMIND_$kind")
         return PendingIntent.getBroadcast(context, code, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    }
+
+    private fun atEarliest(alarm: AlarmManager, pi: PendingIntent, times: List<String>) {
+        val now = LocalDateTime.now()
+        var best: LocalDateTime? = null
+        for (hhmm in times) {
+            val time = try { LocalTime.parse(hhmm) } catch (e: Exception) { continue }
+            var next = now.toLocalDate().atTime(time)
+            if (!next.isAfter(now.plusSeconds(30))) next = next.plusDays(1)
+            if (best == null || next.isBefore(best)) best = next
+        }
+        best?.let { alarm.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, it.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), pi) }
     }
 
     private fun at(alarm: AlarmManager, pi: PendingIntent, hhmm: String) {
@@ -65,6 +83,28 @@ object Reminders {
         if (kind == "run") {
             if (s.optJSONObject("run") == null) return
             post(context, "dungeon", "Dungeons", 4, "[System] Dungeon cleared", "The boss has fallen. Return to the app to claim your rewards.")
+            return
+        }
+        if (kind == "slot") {
+            if (s.optJSONObject("pause") != null) return
+            val t = Logic.today(s)
+            val slots = s.optJSONObject("settings")?.optJSONObject("slots")
+            val q = s.optJSONObject("history")?.optJSONObject(t)?.optJSONObject("q")
+            val plan = Logic.planFor(s, t) ?: return
+            val nowHm = LocalTime.now()
+            for (i in 0 until plan.length()) {
+                val item = plan.optJSONObject(i) ?: continue
+                val id = item.optString("id")
+                if (q?.optBoolean(id) == true) continue
+                val hhmm = slots?.optString(id, "") ?: ""
+                val time = try { LocalTime.parse(hhmm) } catch (e: Exception) { continue }
+                if (kotlin.math.abs(java.time.Duration.between(time, nowHm).toMinutes()) <= 15) {
+                    val h = Logic.haste(s)
+                    post(context, "plan", "Planned quests", 5, "[System] It's time: ${item.optString("name")}",
+                        item.optString("detail") + (if (h > 1) ". Start now for ×$h XP." else ". Start now and keep your streak alive."))
+                    return
+                }
+            }
             return
         }
         if (kind == "urgent") {
@@ -88,8 +128,20 @@ object Reminders {
         } else {
             if (done >= clearAt) return
             val left = clearAt - done
-            title = "[System] Warning: $left quest${if (left > 1) "s" else ""} left"
-            body = "Complete $left more before the day resets, or face the Penalty Zone. Streak: ${s.optInt("streak")} days."
+            val hr = LocalTime.now().hour
+            val streak = s.optInt("streak")
+            title = when {
+                hr < 15 -> "[System] $left quest${if (left > 1) "s" else ""} left. Haste ends soon."
+                hr < 20 -> "[System] Warning: $left quest${if (left > 1) "s" else ""} left"
+                hr < 22 -> "[System] The gate boss is enraged"
+                else -> "[System] FINAL WARNING: penalty incoming"
+            }
+            body = when {
+                hr < 15 -> "Do one now while XP is still boosted. Tap Start 2 minutes."
+                hr < 20 -> "Complete $left more before the day resets, or face the Penalty Zone. Streak: $streak days."
+                hr < 22 -> "$left quest${if (left > 1) "s" else ""} between you and a ${streak}-day streak. Use a minimum version if you're tired."
+                else -> "Less than 2 hours. Do $left minimum version${if (left > 1) "s" else ""} now to save your ${streak}-day streak."
+            }
         }
         post(context, CHANNEL, "Daily quests", if (kind == "am") 1 else 2, title, body)
     }

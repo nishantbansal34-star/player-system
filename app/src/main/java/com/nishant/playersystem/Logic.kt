@@ -138,6 +138,14 @@ object Logic {
         if (q.optBoolean(id)) { save(context, s); return }
 
         q.put(id, true)
+        // Haste: earlier is worth more. Combo: chain quests within 20 minutes.
+        val now = System.currentTimeMillis()
+        val last = s.optLong("lastDoneAt", 0L)
+        val combo = if (last > 0 && now - last <= 20 * 60000L) minOf(3, s.optInt("combo") + 1) else 0
+        s.put("combo", combo); s.put("lastDoneAt", now)
+        val doneAt = h.optJSONObject("doneAt") ?: JSONObject().also { h.put("doneAt", it) }
+        doneAt.put(id, now)
+        baseXp = (baseXp * haste(s) * (1 + 0.1 * combo)).roundToInt()
         val fx = h.optJSONObject("fx")
         if (fx != null && fx.optDouble("bloodlust", 0.0) > 0 && !fx.optBoolean("bloodUsed")) {
             baseXp = (baseXp * fx.optDouble("bloodlust", 1.0)).roundToInt()
@@ -236,6 +244,42 @@ object Logic {
             if (u.optBoolean("done") || u.optBoolean("missed")) continue
             val at = u.optLong("at")
             if (at > now && (best == null || at < best)) best = at
+        }
+        return best
+    }
+
+    fun hourNow(s: JSONObject?): Double {
+        val t = LocalDateTime.now()
+        var hr = t.hour + t.minute / 60.0
+        if (hr < dayStart(s)) hr += 24
+        return hr
+    }
+
+    fun haste(s: JSONObject?): Double {
+        val hr = hourNow(s)
+        return when { hr < 10 -> 1.5; hr < 13 -> 1.3; hr < 18 -> 1.15; else -> 1.0 }
+    }
+
+    /** Next planned quest reminder: (time, quest name) for a pending quest with a slot later today. */
+    fun nextSlot(s: JSONObject): Pair<Long, String>? {
+        val t = today(s)
+        val plan = planFor(s, t) ?: return null
+        val slots = s.optJSONObject("settings")?.optJSONObject("slots") ?: return null
+        val q = s.optJSONObject("history")?.optJSONObject(t)?.optJSONObject("q")
+        val day = LocalDate.parse(t)
+        val now = System.currentTimeMillis()
+        var best: Pair<Long, String>? = null
+        for (i in 0 until plan.length()) {
+            val item = plan.optJSONObject(i) ?: continue
+            val id = item.optString("id")
+            if (q?.optBoolean(id) == true) continue
+            val hhmm = slots.optString(id, "")
+            if (hhmm.isEmpty()) continue
+            val time = try { java.time.LocalTime.parse(hhmm) } catch (e: Exception) { continue }
+            var dt = day.atTime(time)
+            if (time.hour < dayStart(s)) dt = dt.plusDays(1)
+            val ms = dt.atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+            if (ms > now && (best == null || ms < best.first)) best = Pair(ms, item.optString("name") + "|" + item.optString("detail"))
         }
         return best
     }
