@@ -71,6 +71,28 @@ class Bridge(private val activity: MainActivity) {
     fun readSnapshot(name: String): String = Store.readSnapshot(activity, name) ?: "null"
 
     @JavascriptInterface
+    fun healthStatus(): String = Tracking.healthStatus(activity)
+
+    @JavascriptInterface
+    fun healthRequest() { activity.runOnUiThread { activity.askHealthPermission() } }
+
+    @JavascriptInterface
+    fun healthRead(fromMs: Double) {
+        Tracking.healthRead(activity, fromMs.toLong()) { json -> activity.callJs("window.__health && window.__health(" + org.json.JSONObject.quote(json) + ")") }
+    }
+
+    @JavascriptInterface
+    fun usageStatus(): String = if (Tracking.usageGranted(activity)) "ok" else "permission needed"
+
+    @JavascriptInterface
+    fun openUsageSettings() {
+        activity.runOnUiThread { try { activity.startActivity(Tracking.usageSettingsIntent(activity)) } catch (e: Exception) { } }
+    }
+
+    @JavascriptInterface
+    fun socialMinutes(from: Double, to: Double): String = Tracking.socialMinutes(activity, from.toLong(), to.toLong())
+
+    @JavascriptInterface
     fun vibrate(ms: Int) {
         try {
             val vibrator: Vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

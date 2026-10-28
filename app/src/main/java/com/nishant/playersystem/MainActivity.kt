@@ -114,6 +114,7 @@ class MainActivity : Activity() {
         super.onActivityResult(requestCode, resultCode, data)
         val uri = data?.data
         when (requestCode) {
+            REQ_HEALTH -> callJs("window.__healthPerm && window.__healthPerm()")
             REQ_EXPORT -> {
                 val json = pendingExport
                 pendingExport = null
@@ -137,7 +138,16 @@ class MainActivity : Activity() {
         }
     }
 
-    private fun callJs(js: String) {
+    fun askHealthPermission() {
+        val i = Tracking.permissionIntent(this)
+        if (i == null) { callJs("window.__health && window.__health('{\"error\":\"unavailable\"}')"); return }
+        try {
+            @Suppress("DEPRECATION")
+            startActivityForResult(i, REQ_HEALTH)
+        } catch (e: Exception) { }
+    }
+
+    fun callJs(js: String) {
         web.post { web.evaluateJavascript(js, null) }
     }
 
@@ -152,5 +162,6 @@ class MainActivity : Activity() {
         private const val REQ_NOTIFY = 5
         private const val REQ_EXPORT = 11
         private const val REQ_IMPORT = 12
+        private const val REQ_HEALTH = 13
     }
 }

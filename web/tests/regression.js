@@ -20,8 +20,10 @@ async function open(b,time,seed,opts={}){
   // 1. Navigation across every screen
   { const {ctx,p,errs,close}=await open(b,T,baseSeed(T));
     for(const n of ['quests','gates','inventory','home']){ await p.click(`[data-nav=${n}]`); await p.clock.runFor(300); }
-    for(const to of ['status','skills','stats','castle','friends','settings','store','army','achievements','profile']){ await close(); await p.click('[data-nav=menu]'); await p.clock.runFor(200); await p.click(`.rbtn[data-to=${to}]`); await p.clock.runFor(300); }
-    await p.click('[data-nav=home]'); await p.click('[data-act=go][data-to=boss]'); await p.clock.runFor(300);
+    for(const to of ['status','skills','stats','castle','friends','settings','store','army','journal','profile']){ await close(); await p.click('[data-nav=menu]'); await p.clock.runFor(200); await p.click(`.rbtn[data-to=${to}]`); await p.clock.runFor(300); }
+    await close(); await p.click('[data-act=go][data-to=achievements]'); await p.clock.runFor(300);
+    for(const to of ['arc','breathe']){ await p.evaluate(t=>__dbg.go(t),to); await p.clock.runFor(300); }
+    await close(); await p.click('[data-nav=home]'); await p.clock.runFor(300); await p.click('[data-act=go][data-to=boss]'); await p.clock.runFor(300);
     ok('1 navigation: all screens open without errors',errs.length===0,errs.join('; ')); await ctx.close(); }
 
   // 2,5,6,10,12. Completion, haste XP, level, duplicates, streak
@@ -101,6 +103,65 @@ async function open(b,time,seed,opts={}){
   { const {ctx,p}=await open(b,T,baseSeed(T),{width:360}); let worst=0;
     for(const n of ['home','quests','gates','inventory']){ await p.click(`[data-nav=${n}]`); await p.clock.runFor(300); worst=Math.max(worst,await p.evaluate(()=>document.documentElement.scrollWidth)); }
     ok('16 responsive: no horizontal scroll at 360px',worst<=360,'scrollWidth='+worst); await ctx.close(); }
+
+  // 17. Onboarding assessment personalizes targets and starts the arc
+  { const {ctx,p,errs,st,close}=await open(b,T,null);
+    await p.click('[data-act=accept]'); await p.clock.runFor(500);
+    const picks=[0,2,3,3,3,0,3,1]; for(const n of picks){ await p.click(`[data-act=quizpick][data-n="${n}"]`,{force:true}); await p.clock.runFor(200); }
+    const txt=await p.textContent('main'); ok('17 quiz: report shows strengths and blind spots',/Strengths/.test(txt)&&/Blind spots/.test(txt));
+    await p.click('[data-act=quizapply][data-t=arc]',{force:true}); await p.clock.runFor(600); await close();
+    const s=await st(); ok('17 quiz: plan applied (hard difficulty, steps scale, wake-based slots)',s.settings.difficulty==='hard'&&s.settings.qscale.walk>1&&s.settings.slots.train==='06:00',JSON.stringify([s.settings.difficulty,s.settings.qscale,s.settings.slots.train]));
+    ok('17 arc: 66-day Reset starts today',s.arc&&s.arc.start===K&&!s.arc.hard);
+    ok('17 errors in onboarding',errs.length===0,errs.join('; ')); await ctx.close(); }
+
+  // 18. Arc phase ramp, milestone reward and Hard Mode restart
+  { const start='2026-10-06'; const hist={}; for(let i=0;i<22;i++){ const d=new Date(Date.parse(start+'T12:00:00+05:30')+i*864e5); hist[dk(d)]={q:{train:true},xp:50,cleared:true}; }
+    const {ctx,p,st,close}=await open(b,T,baseSeed(T,{arc:{start,hard:false,num:1,paid:{}},history:hist}));
+    const s=await st(); ok('18 arc: Day 23 pays the Awakening milestone once',s.arc.paid.p1===1&&s.bonusLoot>=1);
+    const mult=await p.evaluate(()=>__dbg.arcMult()); ok('18 arc: Training phase uses full targets (×1.00)',Math.abs(mult-1)<1e-9,'mult='+mult);
+    await close(); await p.evaluate(()=>__dbg.go('arc')); await p.clock.runFor(300); const cells=await p.$$('.arcgrid .ac'); ok('18 arc: screen shows 66 day cells',cells.length===66); await ctx.close(); }
+  { const seed=baseSeed(T,{lastSeen:'2026-10-26',streak:5,arc:{start:'2026-10-20',hard:true,num:1,paid:{}},history:{'2026-10-26':{q:{train:true},xp:30,cleared:true}}});
+    const {ctx,st}=await open(b,T,seed); const s=await st();
+    ok('18 hard mode: a missed day restarts the arc from today',s.arc.start===K&&s.arc.resets===1,JSON.stringify(s.arc)); await ctx.close(); }
+
+  // 19. Daily log: once a day, +15 XP, only in the evening
+  { const T3=new Date('2026-10-28T20:30:00+05:30'); const {ctx,p,st,close}=await open(b,T3,baseSeed(T3));
+    await p.$eval('[data-act=mood][data-n="1"]',e=>e.click()); await p.clock.runFor(200); await p.fill('#jtext','Trained early, felt great'); await p.$eval('[data-act=jsave]',e=>e.click()); await p.clock.runFor(500); await close();
+    const s=await st(); ok('19 journal: log saved with +15 XP',s.history[K].journal&&s.history[K].journal.mood===1&&s.totalXp===15,'xp='+s.totalXp);
+    ok('19 journal: card disappears after saving (once per day)',!(await p.$('[data-act=jsave]'))); await ctx.close(); }
+  { const {ctx,p}=await open(b,T,baseSeed(T)); ok('19 journal: not offered in the morning',!(await p.$('[data-act=jsave]'))); await ctx.close(); }
+
+  // 20. Mind gate breathing awards XP and MP
+  { const {ctx,p,st,close}=await open(b,T,baseSeed(T,{mp:10}));
+    await p.click('[data-nav=gates]'); await p.clock.runFor(300); await p.click('[data-act=go][data-to=breathe]'); await p.clock.runFor(300);
+    await p.click('[data-act=breathgo][data-n="3"]'); await p.clock.runFor(500); await p.clock.fastForward(3*60000+2000); await p.clock.runFor(1500); await close();
+    const s=await st(); ok('20 breathing: 3 min gives +15 XP and +12 MP',s.history[K].mindMin===3&&s.totalXp===15&&s.mp===22,'xp='+s.totalXp+' mp='+s.mp); await ctx.close(); }
+
+  // 21. Health Connect auto-completes steps
+  { const {ctx,p,st,close}=await open(b,T,baseSeed(T,{settings:undefined}));
+    await p.evaluate(()=>{ __dbg.S().settings.health=true; window.__health(JSON.stringify({steps:12000,exerciseMin:5,sleepMin:450})); }); await p.clock.runFor(800); await close();
+    const s=await st(); ok('21 health: 12,000 steps completes the Steps quest',s.history[K].q.walk===true&&s.history[K].prog.walk===12000);
+    ok('21 health: 5 min exercise does not complete Training',!s.history[K].q.train);
+    ok('21 health: 7.5 h sleep gives the rested bonus',s.history[K].rested===true); await ctx.close(); }
+
+  // 22. Screen-time check locks Discipline when social media was used after the cutoff
+  { const T4=new Date('2026-10-28T23:30:00+05:30'); const {ctx,p}=await open(b,T4,baseSeed(T4));
+    await p.evaluate(()=>{ __dbg.S().settings.usage=true; Android.socialMinutes=(f,t)=>JSON.stringify(f>=Date.now()-3*3600e3?{total:12,apps:{Instagram:12}}:{total:95,apps:{Instagram:60,YouTube:35}}); });
+    await p.click('[data-nav=quests]'); await p.clock.runFor(300); await p.click('[data-act=openq][data-id=disc]'); await p.clock.runFor(300);
+    ok('22 screen time: full Discipline locked after late Instagram use',!!(await p.$('[data-act=trkfull][disabled]'))); await ctx.close(); }
+
+  // 23. Friends: season payload, nudge and inbox
+  { const {ctx,p,st}=await open(b,T,baseSeed(T,{net:{id:'me1',secret:'s',code:'ABC123'},history:{[K]:{q:{},xp:120},'2026-10-02':{q:{},xp:80},'2026-09-30':{q:{},xp:999}}}));
+    const sent=[]; await p.route('**/rest/v1/rpc/**',async r=>{ const fn=r.request().url().split('/').pop(); const body=JSON.parse(r.request().postData()||'{}'); sent.push([fn,body]);
+      const out=fn==='ps_board'?[{id:'me1',name:'Tester',level:5,rank:'E',streak:3,weekly_xp:120,week:'x',season:'2026-10',season_xp:200,today_done:0,today_total:6,me:true},{id:'f1',name:'Ravi',level:7,rank:'D',streak:9,weekly_xp:300,week:'x',season:'2026-10',season_xp:900,today_done:3,today_total:6}]:fn==='ps_inbox'?[{from:'Ravi',kind:'nudge'}]:{};
+      await r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(out)}); });
+    await p.click('[data-nav=menu]'); await p.click('.rbtn[data-to=friends]'); await p.clock.runFor(300); await p.click('[data-act=netrefresh]').catch(()=>{}); await p.clock.runFor(2500);
+    const sync=sent.find(x=>x[0]==='ps_sync'); ok('23 season: sync sends this month\'s XP only (200)',sync&&sync[1].p&&sync[1].p.season_xp===200,JSON.stringify(sync&&sync[1].p&&{s:sync[1].p.season,x:sync[1].p.season_xp}));
+    ok('23 inbox: a received nudge is shown',!!sent.find(x=>x[0]==='ps_inbox')&&/Nudge from Ravi/.test(JSON.stringify((await st()).notes)));
+    await p.click('[data-act=boardtab][data-t=season]').catch(()=>{}); await p.clock.runFor(300);
+    const fr=await p.$('[data-act=friend]:not([data-id=me1])'); if(fr){ await fr.click({force:true}); await p.clock.runFor(300); await p.$eval('[data-act=nudge]',e=>e.click()); await p.clock.runFor(2500); } else console.log('NO FRIEND ROW');
+    ok('23 nudge: button calls ps_nudge for the friend',!!sent.find(x=>x[0]==='ps_nudge'&&x[1].p_friend==='f1'&&x[1].p_kind==='nudge'),sent.map(x=>x[0]).join(','));
+    await ctx.close(); }
 
   await b.close();
   let pass=0; for(const [n,c,i] of results){ console.log((c?'PASS ':'FAIL ')+n+(i&&!c?'  ['+i+']':'')); if(c) pass++; }

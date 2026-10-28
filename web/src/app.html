@@ -348,6 +348,17 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .tile .qty{position:absolute;top:6px;right:8px;font-family:var(--f-ui);font-weight:700;font-size:12px;color:var(--ink-2)}
 @media (max-width:360px){.boss-title .bname{font-size:24px}.boss-hero{height:240px}.idcard{grid-template-columns:48px 1fr auto}}
 .home-art{position:absolute;left:0;right:0;top:0;height:340px;z-index:-1;opacity:.55;pointer-events:none;-webkit-mask:linear-gradient(180deg,#000 30%,transparent 100%);mask:linear-gradient(180deg,#000 30%,transparent 100%)}
+.arcgrid{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px;margin-top:10px}
+.ac{aspect-ratio:1;border-radius:4px;display:grid;place-items:center;font-family:var(--f-ui);font-size:9px;color:var(--faint);background:rgb(var(--blue-soft-rgb) / .08)}
+.ac.ok{background:var(--blue);color:#fff} .ac.pf{background:var(--blue-hi);color:#08102a} .ac.ps{background:rgb(var(--violet-rgb) / .5);color:#fff} .ac.miss{background:rgb(var(--red-rgb) / .35);color:#fff}
+.ac.now{outline:1.5px solid var(--violet-hi);color:var(--ink)} .ac.ms{box-shadow:inset 0 0 0 1.5px var(--gold)}
+.moods{display:flex;gap:6px;flex-wrap:wrap}
+.mood{padding:8px 10px;border-radius:99px;border:1px solid var(--line);font-family:var(--f-ui);font-size:12px;letter-spacing:.06em;color:var(--dim);min-height:38px}
+.mood.on{border-color:var(--c);color:var(--c);background:rgb(var(--blue-rgb) / .08)}
+.breath-wrap{position:relative;height:62vh;display:grid;place-items:center}
+.breath-orb{width:240px;height:240px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgb(var(--violet-rgb) / .55),rgb(var(--blue-rgb) / .25) 60%,transparent 72%);box-shadow:0 0 60px rgb(var(--violet-rgb) / .45),inset 0 0 40px rgb(var(--blue-rgb) / .35);border:1.5px solid rgb(var(--violet-rgb) / .6);transition:transform 1s linear}
+.breath-txt{position:absolute;text-align:center}
+@media (prefers-reduced-motion:reduce){.breath-orb{transition:none}}
 /* heatmap + charts */
 .heat{display:flex;gap:3px;width:max-content}
 .heat span{display:flex;flex-direction:column;gap:3px}
@@ -511,6 +522,12 @@ const ACH=[
   {id:"urgent5",name:"Urgent Responder",rar:"rare",icon:"bolt",desc:"Clear 5 urgent quests.",cond:s=>(s.urgentDone||0)>=5},
   {id:"floor50",name:"Halfway Up",rar:"epic",icon:"crown",desc:"Reach Floor 50 of the Demon Castle.",cond:s=>((s.castle||{}).floor||0)>=50},
   {id:"castle",name:"Castle Conqueror",rar:"mythic",icon:"crown",desc:"Defeat the Demon King on Floor 100.",cond:s=>((s.castle||{}).floor||0)>=100},
+  {id:"phase2",name:"Into Training",rar:"rare",icon:"bolt",desc:"Reach Day 22 of a 66-day Reset.",cond:s=>!!(s.arc&&s.arc.paid&&s.arc.paid.p1)},
+  {id:"reset",name:"Reset Complete",rar:"legendary",icon:"crown",desc:"Finish a 66-day Reset.",cond:s=>(s.arcsDone||0)>=1},
+  {id:"calm",name:"Calm Mind",rar:"rare",icon:"moon",desc:"Complete 10 breathing sessions.",cond:s=>(s.mind||0)>=10},
+  {id:"rested",name:"Well Rested",rar:"common",icon:"moon",desc:"Sleep 7+ hours on 7 nights (Health Connect).",cond:s=>(s.flags.rested||0)>=7},
+  {id:"reflect",name:"Reflective",rar:"common",icon:"book",desc:"Write 7 daily logs.",cond:s=>Object.values(s.history||{}).filter(h=>h&&h.journal).length>=7},
+  {id:"champ",name:"Season Champion",rar:"legendary",icon:"trophy",desc:"Finish a season #1 among friends.",cond:s=>(s.flags.seasonChamp||0)>=1},
   {id:"party",name:"Party Formed",rar:"rare",icon:"users",desc:"Add your first friend.",cond:s=>(s.flags.friends||0)>=1},
   {id:"week",name:"Consistent",rar:"common",icon:"flame",desc:"Reach a 7-day streak.",cond:s=>s.bestStreak>=7},
   {id:"measured",name:"Measured",rar:"common",icon:"stats",desc:"Log your first body check-in.",cond:s=>(s.body||[]).length>=1},
@@ -528,6 +545,7 @@ const ITEMS={
   cloak:{name:"Shadow Cloak",bonus:{AGI:3},desc:"Light on the feet. Steps come easier."},
   ring:{name:"Discipline Ring",bonus:{DIS:3},desc:"Tightens around the finger after 11 PM."},
   scroll:{name:"Wisdom Scroll",bonus:{INT:3},desc:"Ten pages at a time, it keeps unrolling."},
+  sigil:{name:"Monarch's Sigil",bonus:{STR:2,VIT:2,INT:2,AGI:2,FOC:2,DIS:2},desc:"Earned by finishing a 66-day Reset with grade A or S."},
   flask:{name:"Vitality Flask",bonus:{VIT:3},desc:"Never quite empty if you keep drinking water."}
 };
 const SHADOW_NAMES=["Igris","Tank","Iron","Tusk","Beru","Bellion"];
@@ -746,8 +764,8 @@ function fresh(){
   return {v:2,name:"Nishant",startDate:t,lastSeen:t,level:1,xp:0,statPoints:0,
     stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:0,potions:0,streak:0,bestStreak:0,totalDays:0,perfectDays:0,
     job:"None",title:"Awakened",ach:[],items:[],counts:{},penalty:null,jobTrial:null,flags:{},
-    settings:{difficulty:"normal",restDay:0,dayStart:0,remindOn:true,remindAM:"08:00",remindPM:"21:00",nag:true,sound:true,slots:{train:"07:30",deep:"10:00",walk:"18:30",read:"21:30",water:"",disc:"22:30"}},
-    quests:JSON.parse(JSON.stringify(BASE_QUESTS)),mp:100,skills:{},keys:1,urgent:{},run:null,castle:{floor:0},runsDone:0,urgentDone:0,freezes:0,pause:null,weekly:{},bonusLoot:0,body:[],archive:{},totalXp:0,
+    settings:{difficulty:"normal",restDay:0,dayStart:0,remindOn:true,remindAM:"08:00",remindPM:"21:00",nag:true,sound:true,slots:{train:"07:30",deep:"10:00",walk:"18:30",read:"21:30",water:"",disc:"22:30"},qscale:{},health:false,usage:false},
+    quests:JSON.parse(JSON.stringify(BASE_QUESTS)),arc:null,quiz:null,mind:0,seasonDone:{},mp:100,skills:{},keys:1,urgent:{},run:null,castle:{floor:0},runsDone:0,urgentDone:0,freezes:0,pause:null,weekly:{},bonusLoot:0,body:[],archive:{},totalXp:0,
     rewards:[{id:"r1",name:"Cheat meal",cost:400},{id:"r2",name:"Movie or series night",cost:250},{id:"r3",name:"Something new under ₹1,000",cost:900}],
     history:{},shadows:[],log:[],notes:[],notesSeen:0,pendingLevelUp:null};
 }
@@ -758,7 +776,7 @@ function migrate(d){
     if(!Array.isArray(m.quests)||!m.quests.length) m.quests=JSON.parse(JSON.stringify(BASE_QUESTS));
     if(!m.totalXp) m.totalXp=Object.values(m.history||{}).reduce((a,h)=>a+((h&&h.xp)||0),0);
     ["weekly","archive","skills","urgent"].forEach(k=>{ if(!m[k]||typeof m[k]!=="object") m[k]={}; }); if(!Array.isArray(m.body)) m.body=[];
-    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(!m.settings.slots) m.settings.slots=fresh().settings.slots; if(m.settings.nag==null) m.settings.nag=true; if(m.settings.sound==null) m.settings.sound=true; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
+    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(!m.settings.slots) m.settings.slots=fresh().settings.slots; if(m.settings.nag==null) m.settings.nag=true; if(!m.settings.qscale) m.settings.qscale={}; if(!m.seasonDone) m.seasonDone={}; if(m.settings.sound==null) m.settings.sound=true; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
     return m; }
   ["name","startDate","lastSeen","level","xp","gold","potions","streak","bestStreak","totalDays","rewards","statPoints"].forEach(k=>{ if(d[k]!=null) s[k]=d[k]; });
   if(d.stats){ s.stats={STR:d.stats.STR||10,VIT:d.stats.VIT||10,INT:d.stats.INT||10,AGI:d.stats.AGI||10,FOC:d.stats.PER||10,DIS:10}; }
@@ -775,14 +793,15 @@ function mult(){ let m=1+Math.min(.30,activeShadows()*.03); const h=S.history[to
 // ---- quest plan ----
 function splitFor(dow){ const rest=S.settings.restDay; if(dow===rest) return "Mobility"; return SPLITS[(dow-rest-1+7)%7]; }
 function planFor(k){
-  const dow=parseDay(k).getDay(), tier=tierOf(S.level), trial=S.jobTrial===k, dm=DIFF[S.settings.difficulty]||1, m=dm*(trial?1.5:1);
+  const dow=parseDay(k).getDay(), tier=tierOf(S.level), trial=S.jobTrial===k, dm=DIFF[S.settings.difficulty]||1, m0=dm*(trial?1.5:1);
   const r=(v,step)=>Math.max(step,Math.round(v/step)*step);
   const split=splitFor(dow);
-  const mins=split==="Mobility"?10:r([15,20,25,30,40,45][tier]*m,5);
+  const m=m0*arcMult(k); const qsc=id=>((S.settings.qscale||{})[id])||1;
+  const mins=split==="Mobility"?10:r([15,20,25,30,40,45][tier]*m*qsc("train"),5);
   const hk=S.history[k]||{}; const spr=hk.fx&&hk.fx.sprint?1-hk.fx.sprint:1;
-  const steps=r([4000,5000,6000,7000,8000,10000][tier]*m*spr,500);
-  const pages=r([5,10,15,20,25,30][tier]*m,5);
-  const deep=r([30,45,60,75,90,120][tier]*m,15);
+  const steps=r([4000,5000,6000,7000,8000,10000][tier]*m*spr*qsc("walk"),500);
+  const pages=Math.max(2,Math.round([5,10,15,20,25,30][tier]*m*qsc("read")));
+  const deep=r([30,45,60,75,90,120][tier]*m*qsc("deep"),15);
   const water=[2,2.5,2.5,3,3,3.5][tier];
   const late=S.settings.difficulty==="hard"?"10":"11";
   const drills=(DRILLS[split]||[]).map(d=>[d[0],Array.isArray(d[1])?d[1][tier]:d[1]]);
@@ -926,6 +945,7 @@ function processDays(){
   if(missed>0){
     if(S.penalty){ S.penalty.forDay=lastMiss; S.penalty.multi=true; } else S.penalty={since:t,forDay:lastMiss,prevStreak:prev,multi:missed>1};
     S.streak=0;
+    if(S.arc&&S.arc.hard&&!S.arc.graduated){ S.arc.start=t; S.arc.resets=(S.arc.resets||0)+1; S.arc.paid={}; note("arc","Hard Mode: arc restarted","You missed a day, so your 66-day Reset starts again from Day 1.","red"); }
     note("penalty","Penalty issued","You failed the daily quest"+(missed>1?" on "+missed+" days":"")+". Survive the penalty to remove Weakened."+(missed===1?" Forgot to log? You can log yesterday until noon.":""),"red"); log("Daily quest failed. Penalty issued.");
   }
   note("quest","System notice",S.pause?"Pause mode is on. No penalties while you're away.":"Your daily quests have been generated.");
@@ -938,7 +958,7 @@ function reconcile(){
   const t=today(), wk=weekKey(t); let c=0; for(let i=0;i<7;i++){ const k=addDay(wk,i); if(S.history[k]&&S.history[k].cleared) c++; }
   if(c>=5 && !S.weekly[wk]){ S.weekly[wk]=true; const x=gain(100,t); S.gold+=150; S.bonusLoot=(S.bonusLoot||0)+1;
     note("loot","Weekly Dungeon cleared","+"+x+" XP, +150 G and a dungeon chest.","gold"); setTimeout(()=>toast("Weekly Dungeon cleared","+"+x+" XP · +150 G · dungeon chest","gold","shield"),800); }
-  reconcileCastle(); urgentSweep();
+  reconcileCastle(); urgentSweep(); reconcileArc(); reconcileSeason();
   checkAch();
 }
 // ================= persistence =================
@@ -969,7 +989,7 @@ async function boot(){
   if(S&&S.run){ checkRunReturn(); if(S&&S.run) screen="run"; render(); }
   setInterval(tick,1000);
   setTimeout(()=>checkUpdate(false),2500);
-  setTimeout(()=>{ if(S&&S.net) netBoard(); },3000);
+  setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); },3000);
   setTimeout(()=>{ const sp=document.getElementById("splash"); document.body.classList.remove("splashing"); if(sp){ sp.classList.add("gone"); setTimeout(()=>{ sp.remove(); setScene(); },650); } },1500);
 }
 window.__imported=function(json){ try{ const d=JSON.parse(json); if(!d||!d.level) throw 0; S=migrate(d); processDays(); toast("Backup","Progress restored from file.","","check"); commit(); }catch(e){ toast("Backup","That file isn't a Player System backup.","red","x"); } };
@@ -984,12 +1004,14 @@ async function checkUpdate(manual){
 }
 window.__appLeft=function(interactive){ if(S&&S.run&&interactive){ S.run.left=Date.now(); dirty=true; flush(); } };
 function checkRunReturn(){ if(!S||!S.run) return; if(S.run.left){ const away=Date.now()-S.run.left; if(away>45000){ endRun(false,"You left the dungeon for too long. The key is lost."); return; } S.run.left=null; commit(); } if(Date.now()>=S.run.endsAt) endRun(true); }
-window.__onResume=function(){ if(!window.Android) return; setTimeout(()=>{ if(S&&S.net) netBoard(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } checkRunReturn(); if(S&&S.run){ screen="run"; render(); } } }catch(e){} };
+window.__onResume=function(){ if(!window.Android) return; ui.hstat=null; setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } checkRunReturn(); if(S&&S.run){ screen="run"; render(); } } }catch(e){} };
 window.__back=function(){ if(document.getElementById("ov").innerHTML){ closeOv(); return true; } if(screen==="settings"&&ui.setPage){ ui.setPage=null; render(); return true; } if(hist.length){ screen=hist.pop(); render(); return true; } if(screen!=="home"){ screen="home"; render(); return true; } return false; };
 function tick(){
   if(!S) return;
   if(processDays()){ commit(); return; }
   const c=document.getElementById("clock"); if(c) c.textContent=untilMidnight();
+  if(ui.breath&&screen==="breathe"){ const b=ui.breath, left=b.end-Date.now(); if(left<=0){ breathDone(); render(); } else { const cyc=((Date.now()-b.start)/1000)%14; const o=document.getElementById("borb"); if(o) o.style.transform="scale("+(cyc<4?.6+.4*(cyc/4):cyc<8?1:1-.4*((cyc-8)/6)).toFixed(3)+")"; const ph=document.getElementById("bphase"); if(ph) ph.textContent=cyc<4?"Breathe in":cyc<8?"Hold":"Breathe out"; const bc=document.getElementById("bclock"); if(bc) bc.textContent=Math.floor(left/60000)+":"+pad(Math.floor(left%60000/1000)); } }
+  if(S.settings.health&&Date.now()-(ui.healthAsk||0)>900000){ ui.healthAsk=Date.now(); healthPull(); }
   if(S.session&&screen==="session"){ const ss=S.session, el=sessElapsed(ss), sc=document.getElementById("sessclock"); if(sc) sc.textContent=pad(Math.floor(Math.max(0,ss.durMs-el)/60000))+":"+pad(Math.floor(Math.max(0,ss.durMs-el)%60000/1000));
     const st=(el>=ss.durMs?2:el>=ss.minMs?1:0); if(st!==ui.sessStage){ if(ui.sessStage!=null&&st>ui.sessStage){ sfx(st===2?"level":"done"); haptic(st===2?200:60); } ui.sessStage=st; render(); } else if(Math.floor(Date.now()/1000)%10===0) render(); }
   if(ui.startQ){ const left=Math.max(0,ui.startEnd-Date.now()); const sc=document.getElementById("sclock"); if(sc){ sc.textContent=Math.floor(left/60000)+":"+pad(Math.floor(left%60000/1000)); if(left===0&&!ui.startRang){ ui.startRang=true; sfx("level"); haptic(200); const m=document.getElementById("smsg"); if(m) m.textContent="Two minutes done. Keep going, or mark it done when you finish."; } } }
@@ -1005,8 +1027,8 @@ function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH
 
 // ================= navigation =================
 function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
-function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"gate",run:"vortex",castle:"storm",skills:"vortex",session:"vortex",boss:"calm"}[sc]||"calm"; }
-function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=screen==="army"||screen==="castle"||screen==="skills"?"violet":"blue"; }
+function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"gate",run:"vortex",castle:"storm",skills:"vortex",session:"vortex",boss:"calm",arc:"storm",quiz:"gate",journal:"moon",breathe:"vortex"}[sc]||"calm"; }
+function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=["army","castle","skills","arc","breathe"].includes(screen)?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
 function unread(){ return S.notes.filter(n=>n.t>S.notesSeen).length; }
 function topbar(title,sub,backable){
@@ -1075,8 +1097,11 @@ function vHome(){
       <div class="tiny" style="margin-top:6px;color:var(--gold-hi)">Next reward: ${nextReward}</div>
       <div class="tiny muted" style="margin-top:2px">${S.pause?"Pause mode · no penalties":"Resets in <span class='num' id='clock'>"+untilMidnight()+"</span>"}</div></section>
     ${checkinDue()?`<section class="card" data-act="go" data-to="body" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("stats","","color:var(--blue-hi)")}<div><div class="label">Weekly check-in</div><div class="small">Log your weight and max reps to track real progress.</div></div></section>`:""}
+    ${journalCard()}
+    ${arcCard()}
+    ${!S.quiz?`<section class="card" data-act="quizstart" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("target","","color:var(--cyan);width:26px;height:26px")}<div><div class="label" style="color:var(--cyan)">Personalize your System</div><div class="small">2-minute assessment: targets and quest times fitted to your real life.</div></div></section>`:""}
     ${friendsCard()}
-    <section class="card quote-card"><span class="qm">“</span><span>${esc(quote)}</span></section>
+    <section class="card quote-card"><span class="qm">“</span><span><span class="label" style="display:block;color:var(--blue-hi);font-style:normal">System message</span>${esc(sysMessage())}</span></section>
     <div class="pills">
       <span class="pill violet">${ico("drop")}${S.mp||0}/${maxMp()} MP</span>
       <button class="pill violet" data-act="go" data-to="castle">${ico("crown")}Castle floor ${S.castle.floor}</button>
@@ -1194,7 +1219,7 @@ function vAch(){
       <div style="min-width:0"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div>${has?(S.title===a.name?`<span class="pill gold" style="margin-top:6px">Equipped title</span>`:`<button class="pill" style="margin-top:6px" data-act="title" data-id="${a.id}">Equip as title</button>`):""}</div>
       <div class="rar">${(a.rar==="legendary"||a.rar==="mythic")&&has?`<div class="stars">★★★★★</div>`:""}${a.rar}</div></section>`;}).join("")||`<div class="empty">Nothing here yet.</div>`}</div>`;
 }
-const ITEM_RAR={sword:"rare",core:"epic",crown:"legendary",cloak:"rare",ring:"epic",scroll:"rare",flask:"rare"};
+const ITEM_RAR={sigil:"mythic",sword:"rare",core:"epic",crown:"legendary",cloak:"rare",ring:"epic",scroll:"rare",flask:"rare"};
 const RAR_ORDER={mythic:0,legendary:1,epic:2,rare:3,uncommon:4,common:5};
 function vInv(){
   const tab=ui.invTab==="all"?"items":ui.invTab||"items", flt=ui.invFilter||"all", srt=ui.invSort||"rarity"; let tiles=[];
@@ -1315,6 +1340,8 @@ function vSettings(){
   const rows=[["profile","user","Profile",esc(S.name)],["quests","quests","Your quests",Q().length+" active · clear "+clearAt()],
     ...(A?[["remind","bell","Quest reminders",st.remindOn?st.remindAM+" · "+st.remindPM:"Off"]]:[]),
     ["game","target","Gameplay",st.difficulty[0].toUpperCase()+st.difficulty.slice(1)+" · resets "+(st.dayStart?st.dayStart+" AM":"midnight")],
+    ...(window.Android?[["tracking","shoe","Phone tracking",(S.settings.health?"Health Connect on":"Health Connect off")+" · "+(S.settings.usage?"screen time on":"screen time off")]]:[]),
+    ["assess","target","Player assessment",S.quiz?"Retake to refit your targets":"Not taken yet"],
     ["times","bell","Quest times",Q().filter(q=>slotOf(q.id)).length+" planned"],
     ["pause","moon","Pause & shields",(S.pause?"Paused":"Active")+" · "+(S.freezes||0)+"/2 shields"],
     ["data","bag","Data & backup",A?"Backup file, snapshots":"Backup code"],
@@ -1328,7 +1355,7 @@ function vSettingsFull(){
   const st=S.settings, A=!!window.Android;
   const qs=S.quests, on=qs.filter(q=>q.enabled!==false).length;
   const ed=ui.editQ?qs.find(q=>q.id===ui.editQ):null;
-  const TITLES={times:"Quest times",quests:"Your quests",profile:"Profile",game:"Gameplay",remind:"Reminders",pause:"Pause & shields",data:"Data & backup",about:"About",reset:"Reset"};
+  const TITLES={tracking:"Phone tracking",times:"Quest times",quests:"Your quests",profile:"Profile",game:"Gameplay",remind:"Reminders",pause:"Pause & shields",data:"Data & backup",about:"About",reset:"Reset"};
   const html=`
   <section class="card" data-sec="quests"><div class="label">Your quests</div>
     <p class="tiny muted" style="margin:4px 0 4px">${on} active · clear ${clearAt()} each day. Turn quests off or set your own targets as life changes.</p>
@@ -1354,6 +1381,12 @@ function vSettingsFull(){
   ${A?`<section class="card stack" data-sec="remind"><div style="display:flex;justify-content:space-between;align-items:center"><div><div class="label">Reminders</div><div class="tiny muted">Morning quest notice and an evening warning if you're behind.</div></div><button class="toggle ${st.remindOn?"on":""}" data-act="remind" aria-label="Reminders"></button></div>
     ${st.remindOn?`<div class="form-row"><div class="field" style="flex:1"><label class="label" for="remAM">Morning</label><input id="remAM" type="time" value="${esc(st.remindAM)}"></div><div class="field" style="flex:1"><label class="label" for="remPM">Evening warning</label><input id="remPM" type="time" value="${esc(st.remindPM)}"></div></div>`:""}
   </section>`:""}
+  <section class="card stack" data-sec="tracking">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Health Connect</div><div class="tiny muted">Reads steps, exercise and sleep. Steps and Training complete themselves when you hit the target; 7+ hours of sleep gives a bonus. Status: ${esc(hStat())}${ui.healthAt?" · synced "+new Date(ui.healthAt).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"}):""}</div></div><button class="toggle ${S.settings.health?"on":""}" data-act="healthtoggle" aria-label="Health Connect"></button></div>
+    ${ui.healthData?`<div class="tiny" style="color:var(--ink-2)">Today: ${fmt(ui.healthData.steps||0)} steps · ${ui.healthData.exerciseMin||0} min exercise · last night ${Math.floor((ui.healthData.sleepMin||0)/60)}h ${(ui.healthData.sleepMin||0)%60}m sleep</div>`:""}
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Screen-time check</div><div class="tiny muted">Lets the Discipline quest see how long you used Instagram, YouTube, Facebook, X, Snapchat and Reddit after the cutoff. Status: ${hasA("usageStatus")?esc(Android.usageStatus()==="ok"?"connected":"permission needed"):"unavailable"}</div></div><button class="toggle ${S.settings.usage?"on":""}" data-act="usagetoggle" aria-label="Screen-time check"></button></div>
+    <p class="tiny muted" style="margin:0">Everything is read on this phone only. Nothing is uploaded.</p>
+  </section>
   <section class="card stack" data-sec="times"><p class="small muted" style="margin:0">Give each quest a time. Your phone reminds you then ("Start now for ×1.5 XP"), and Next Up follows this order. Leave a time empty to skip its reminder.</p>
     ${Q().map(q=>`<div class="lrow"><span style="color:${q.c}">${ico(q.icon)}</span><span class="grow">${esc(q.name)}</span><input type="time" id="slot_${q.id}" value="${esc(slotOf(q.id))}" style="background:rgb(var(--bg-rgb) / .8);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink)"></div>`).join("")}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px"><div><div class="label">Extra reminders when behind</div><div class="tiny muted">1 PM, 5 PM, your evening time and 10:30 PM, only if you haven't cleared yet.</div></div><button class="toggle ${S.settings.nag!==false?"on":""}" data-act="nagtoggle" aria-label="Extra reminders"></button></div>
@@ -1385,12 +1418,12 @@ async function rpc(fn,body){
   const t=await r.text(); if(!r.ok){ let m="network"; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
   return t?JSON.parse(t):null;
 }
-const NET_ERR={code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"Your online ID was rejected. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
+const NET_ERR={nudge_limit:"You've already sent 2 to this friend in the last 12 hours.",not_friends:"You can only nudge friends.",code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"Your online ID was rejected. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
 const netErr=e=>NET_ERR[e&&e.message]||(e&&/fetch|network/i.test(e.message)?NET_ERR.network:"Something went wrong: "+(e&&e.message));
 function netPayload(){
   const t=today(), wk=weekKey(t); let wxp=0; for(let i=0;i<7;i++){ const h=S.history[addDay(wk,i)]; if(h) wxp+=h.xp||0; }
   const h=S.history[t]||{q:{}};
-  return {name:S.name,level:S.level,rank:rankOf(S.level).r,title:S.title,streak:S.streak,best_streak:S.bestStreak,weekly_xp:wxp,week:wk,today_done:doneCount(h),today_total:Q().length,today_date:t,today_cleared:!!h.cleared,total_xp:S.totalXp||0};
+  return {name:S.name,level:S.level,rank:rankOf(S.level).r,title:S.title,streak:S.streak,best_streak:S.bestStreak,weekly_xp:wxp,week:wk,season:seasonKey(),season_xp:seasonXp(),today_done:doneCount(h),today_total:Q().length,today_date:t,today_cleared:!!h.cleared,total_xp:S.totalXp||0};
 }
 let netTimer=null, netLast="";
 function netSchedule(delay){ if(!netOK()||!S||!S.net) return; clearTimeout(netTimer); netTimer=setTimeout(netSync,delay==null?6000:delay); }
@@ -1403,19 +1436,22 @@ async function netBoard(){
   if(!netOK()||!S||!S.net) return;
   ui.boardBusy=true; if(screen==="friends") render();
   try{ await netSync(); const b=await rpc("ps_board",{p_id:S.net.id,p_secret:S.net.secret}); ui.board=b||[]; ui.boardAt=Date.now(); ui.netErr=null;
-    const n=ui.board.filter(x=>!x.me).length; if((S.flags.friends||0)!==n){ S.flags.friends=n; commit(); } }
+    const n=ui.board.filter(x=>!x.me).length; if((S.flags.friends||0)!==n){ S.flags.friends=n; }
+    const cur=seasonKey(); S.boardCache={season:cur,rows:ui.board.map(x=>({me:!!x.me,xp:x.season===cur?x.season_xp:0}))};
+    try{ const inbox=await rpc("ps_inbox",{p_id:S.net.id,p_secret:S.net.secret}); (inbox||[]).forEach((m,i)=>setTimeout(()=>{ toast(m.kind==="cheer"?"Cheer received":"Nudge received",m.kind==="cheer"?m.from+" cheered you on · Keep going.":m.from+" nudged you · Time to clear your quests.",m.kind==="cheer"?"gold":"red",m.kind==="cheer"?"star":"bolt"); haptic(80); },400+i*1200)); (inbox||[]).forEach(m=>note("friends",m.kind==="cheer"?"Cheer from "+m.from:"Nudge from "+m.from,m.kind==="cheer"?"Keep going, Player.":"Your friend wants you to clear today's quests.",m.kind==="cheer"?"gold":"red")); }catch(e){}
+    dirty=true; flush(); }
   catch(e){ ui.netErr=netErr(e); }
   ui.boardBusy=false; if(screen==="friends"||screen==="home") render();
 }
 function initial(n){ return esc(String(n||"?").trim().charAt(0).toUpperCase()||"?"); }
 function boardSorted(){
   const t=today(), wk=weekKey(t), tab=ui.boardTab||"weekly";
-  const val=x=>tab==="level"?x.level*1e6+(x.total_xp||0)/1e3:tab==="streak"?x.streak:(x.week===wk?x.weekly_xp:0);
+  const sk=seasonKey(); const val=x=>tab==="level"?x.level*1e6+(x.total_xp||0)/1e3:tab==="streak"?x.streak:tab==="season"?(x.season===sk?x.season_xp:0):(x.week===wk?x.weekly_xp:0);
   return (ui.board||[]).slice().sort((a,b)=>val(b)-val(a)||b.level-a.level);
 }
 function boardRow(x,i){
   const t=today(), wk=weekKey(t), tab=ui.boardTab||"weekly";
-  const v=tab==="level"?"Lv "+x.level:tab==="streak"?x.streak+"d":fmt(x.week===wk?x.weekly_xp:0)+" XP";
+  const v=tab==="level"?"Lv "+x.level:tab==="streak"?x.streak+"d":tab==="season"?fmt(x.season===seasonKey()?x.season_xp:0)+" XP":fmt(x.week===wk?x.weekly_xp:0)+" XP";
   const todayTxt=x.today_date===t?(x.today_cleared?`<span class="chip-ok">cleared today</span>`:`<span class="chip-mid">${x.today_done}/${x.today_total} today</span>`):`<span class="chip-off">not active today</span>`;
   return `<button class="lb-row${x.me?" me":""}" data-act="friend" data-id="${esc(x.id)}"><span class="lb-pos p${i+1}">${i===0?ico("crown","","width:18px;height:18px;margin:auto"):i+1}</span><span class="lb-av">${initial(x.name)}</span>
     <span style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}${x.me?" (you)":""}</div><div class="lb-sub">${esc(x.rank)}-Rank · ${x.streak}-day streak · ${todayTxt}</div></span>
@@ -1441,13 +1477,14 @@ function vFriends(){
   <form class="card form-row" id="addFriend" style="align-items:center"><input id="friendCode" placeholder="Friend's code, e.g. Q38LT6" maxlength="6" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em"><button class="btn sm" type="submit">Add</button></form>
   ${ui.netErr?`<p class="small" style="color:var(--red-hi);margin:0 4px">${esc(ui.netErr)}</p>`:""}
   <section class="card">
-    <div class="seg" style="margin-bottom:8px">${[["weekly","This week"],["level","Level"],["streak","Streak"]].map(t=>`<button class="${tab===t[0]?"on":""}" data-act="boardtab" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
+    <div class="seg" style="margin-bottom:8px">${[["weekly","Week"],["season","Season"],["level","Level"],["streak","Streak"]].map(t=>`<button class="${tab===t[0]?"on":""}" data-act="boardtab" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
     ${rows.length?rows.map(boardRow).join(""):`<p class="empty">${ui.boardBusy?"Loading the board…":"Pull the board to load it."}</p>`}
     ${friends===0&&rows.length?`<p class="tiny muted center" style="margin:10px 0 0">It's just you so far. Send your code to a friend to start competing.</p>`:""}
     <div class="progress-line" style="margin-top:10px"><span>${ui.boardAt?"Updated "+new Date(ui.boardAt).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"}):""}</span><button class="tiny" style="color:var(--blue-hi);font-family:var(--f-ui);letter-spacing:.1em" data-act="netrefresh">${ui.boardBusy?"REFRESHING…":"REFRESH"}</button></div>
   </section>
   ${sel?`<section class="card"><div style="display:flex;gap:12px;align-items:center">${rankBadge(sel.rank,54)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:17px">${esc(sel.name)}</div><div class="tiny muted">${esc(sel.title||"No title")} · Level ${sel.level} · best streak ${sel.best_streak}d</div><div class="tiny muted">Total XP ${fmt(sel.total_xp||0)}</div></div></div>
-    <div class="form-row" style="margin-top:10px"><button class="btn red sm" data-act="unfriend" data-id="${esc(sel.id)}">${ui.pendingUnfriend===sel.id?"Tap again to remove":"Remove friend"}</button><button class="btn ghost sm" data-act="friend" data-id="">Close</button></div></section>`:""}
+    <div class="form-row" style="margin-top:10px"><button class="btn gold sm" data-act="cheer" data-id="${esc(sel.id)}">${ico("star","","width:16px;height:16px")}Cheer</button><button class="btn sm" data-act="nudge" data-id="${esc(sel.id)}">${ico("bolt","","width:16px;height:16px")}Nudge</button></div>
+    <div class="form-row" style="margin-top:8px"><button class="btn red sm" data-act="unfriend" data-id="${esc(sel.id)}">${ui.pendingUnfriend===sel.id?"Tap again to remove":"Remove friend"}</button><button class="btn ghost sm" data-act="friend" data-id="">Close</button></div></section>`:""}
   <p class="tiny muted center" style="margin:0">Your stats update automatically a few seconds after you complete quests.</p>
   <button class="tiny muted" style="margin:0 auto;display:block;font-family:var(--f-ui);letter-spacing:.1em" data-act="netleave">${ui.pendingLeave?"TAP AGAIN TO LEAVE AND DELETE YOUR ONLINE PROFILE":"LEAVE THE NETWORK"}</button>
   </div>`;
@@ -1574,6 +1611,14 @@ function trackerSheet(){
         <button class="btn wide" data-act="trkfull" ${prog>=q.target?"":"disabled"}>${ico("check")}${prog>=q.target?"Complete · +"+xpFull+" XP":"Reach "+fmt(q.target)+" "+q.unit+" to complete"}</button>
         ${canMin?`<button class="btn ghost wide" data-act="trkmin" ${prog>=q.minTarget&&prog<q.target?"":"disabled"}>${prog>=q.minTarget?"Claim minimum · +"+xpMin+" XP":"Minimum at "+fmt(q.minTarget)+" "+(q.minTarget===1?q.unit.replace(/s$/,""):q.unit)}</button>`:""}
       </div>`;
+  } else if(id==="disc"&&q.kind==="auto"&&!q.custom&&socialAfterCutoff()){
+    const sc=socialAfterCutoff(), broke=sc.after.total>0, appsTxt=o=>Object.entries(o.apps||{}).filter(x=>x[1]>0).map(x=>x[0]+" "+x[1]+"m").join(" · ")||"none";
+    body=`<p class="small" style="margin:0 0 8px">${esc(q.detail)}</p>
+      <div class="lrow"><span class="grow">Social apps today</span><span class="num">${sc.all.total} min</span></div><div class="tiny muted" style="margin-bottom:6px">${esc(appsTxt(sc.all))}</div>
+      <div class="lrow"><span class="grow">After ${sc.cutoff===22?"10":"11"} PM</span><span class="num" style="color:${broke?"var(--red-hi)":"var(--green)"}">${broke?sc.after.total+" min":"clean"}</span></div>
+      ${broke?`<p class="small" style="color:var(--red-hi);margin:8px 0">The System detected ${esc(appsTxt(sc.after))} after the cutoff. Full completion is locked today.</p>`:`<p class="tiny muted" style="margin:8px 0">Verified with your phone's screen-time data. Mark it done once the cutoff has passed or before you sleep.</p>`}
+      <div class="stack" style="gap:8px"><button class="btn wide" data-act="trkfull" ${broke?"disabled":""}>${ico("check")}${broke?"Locked: social media used after cutoff":"I stayed off · +"+xpFull+" XP"}</button>
+      ${canMin?`<button class="btn ghost wide" data-act="trkmin">Minimum: ${esc(miniText(q))} · +${xpMin} XP</button>`:""}</div>`;
   } else {
     body=`<p class="small" style="margin:0 0 12px">${esc(q.detail||q.name)}</p><div class="stack" style="gap:8px"><button class="btn wide" data-act="trkfull">${ico("check")}I did it · +${xpFull} XP</button>
       ${canMin?`<button class="btn ghost wide" data-act="trkmin">Minimum: ${esc(miniText(q))} · +${xpMin} XP</button>`:""}</div>`;
@@ -1606,6 +1651,177 @@ function vHistory(){
     rows.push(`<div class="lrow"><span class="grow"><div style="font-weight:600">${parseDay(k).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}</div><div class="tiny muted">${n} quest${n===1?"":"s"}${h&&h.min&&Object.keys(h.min).length?" · "+Object.keys(h.min).length+" minimum":""} · +${fmt((h&&h.xp)||0)} XP</div></span><span class="tiny" style="font-family:var(--f-ui);letter-spacing:.1em;color:${st[1]}">${st[0].toUpperCase()}</span></div>`); }
   return `${topbar("Daily quests","HISTORY · LAST 3 WEEKS")}<div class="stack">${qTabs("history")}<section class="card">${rows.join("")||`<p class="empty">No past days yet.</p>`}</section></div>`;
 }
+// ================= 66-day Reset Arc =================
+const ARC_LEN=66, PHASES=[{n:"Awakening",from:1,to:21,mult:.85,desc:"Lighter targets. Build the rhythm and learn the System."},{n:"Training",from:22,to:44,mult:1,desc:"Full targets. Consistency becomes identity."},{n:"Ascension",from:45,to:66,mult:1.15,desc:"Targets rise 15%. Prove the change is permanent."}];
+const arcDay=k=>S.arc?Math.floor((parseDay(k||today())-parseDay(S.arc.start))/864e5)+1:0;
+const arcPhase=d=>PHASES.find(p=>d>=p.from&&d<=p.to)||PHASES[2];
+function arcMult(k){ if(!S||!S.arc||S.arc.graduated) return 1; const d=arcDay(k); if(d<1) return 1; return arcPhase(Math.min(d,ARC_LEN)).mult+((S.arc.num||1)-1)*.1; }
+function arcCleared(){ if(!S.arc) return 0; let c=0; for(let i=0;i<ARC_LEN;i++){ const h=S.history[addDay(S.arc.start,i)]; if(h&&h.cleared) c++; } return c; }
+function arcGrade(c){ const p=c/ARC_LEN; return p>=.9?"S":p>=.75?"A":p>=.6?"B":"C"; }
+function startArc(hard){ S.arc={start:today(),hard:!!hard,num:((S.arcsDone||0)+1),paid:{},resets:0}; note("arc","66-day Reset begun","Day 1 of 66"+(hard?" · Hard Mode: a missed day restarts the arc.":"")); toast("Reset Arc","Day 1 of 66 · "+(hard?"Hard Mode on":"Awakening phase"),"violet","bolt"); commit(); }
+function reconcileArc(){
+  const a=S.arc; if(!a||a.graduated) return; a.paid=a.paid||{}; const d=arcDay();
+  if(d>21&&!a.paid.p1){ a.paid.p1=1; const x=gain(150); S.bonusLoot=(S.bonusLoot||0)+1; note("arc","Phase 1 complete: Awakening","+"+x+" XP and a chest. Training phase begins: full targets.","gold"); setTimeout(()=>toast("Phase complete","Awakening · +"+x+" XP · chest","gold","crown"),700); }
+  if(d>44&&!a.paid.p2){ a.paid.p2=1; const x=gain(250); S.bonusLoot=(S.bonusLoot||0)+1; S.keys=(S.keys||0)+1; note("arc","Phase 2 complete: Training","+"+x+" XP, a chest and a dungeon key. Ascension begins: targets +15%.","gold"); setTimeout(()=>toast("Phase complete","Training · +"+x+" XP · chest · key","gold","crown"),900); }
+  const lastDone=S.history[addDay(a.start,ARC_LEN-1)]; if(d>ARC_LEN||(d===ARC_LEN&&lastDone&&lastDone.cleared)){
+    const c=arcCleared(), g=arcGrade(c); a.graduated=true; a.grade=g; a.cleared=c; S.arcsDone=(S.arcsDone||0)+1;
+    const x=gain({S:800,A:600,B:400,C:250}[g]); if(!S.items.includes("sigil")&&(g==="S"||g==="A")) S.items.push("sigil"); S.bonusLoot=(S.bonusLoot||0)+2;
+    note("arc","Reset complete: grade "+g,c+" of 66 days cleared. +"+x+" XP"+((g==="S"||g==="A")?", Monarch's Sigil":"")+" and 2 chests.","gold");
+    setTimeout(()=>{ fx.mode="burst"; sfx("level"); toast("Reset complete","Grade "+g+" · "+c+"/66 days · +"+x+" XP","gold","crown"); setTimeout(setScene,1800); },1000);
+  }
+}
+function seasonKey(k){ return (k||today()).slice(0,7); }
+function seasonXp(){ const m=seasonKey(); return Object.keys(S.history).filter(k=>k.startsWith(m)).reduce((a,k)=>a+((S.history[k]||{}).xp||0),0); }
+function reconcileSeason(){
+  const c=S.boardCache; if(!c||!c.season||c.season===seasonKey()||S.seasonDone[c.season]) return; S.seasonDone[c.season]=true;
+  const rows=(c.rows||[]).slice().sort((a,b)=>b.xp-a.xp); if(rows.length<2) return; const pos=rows.findIndex(r=>r.me)+1; if(pos<1) return;
+  if(pos===1){ S.flags.seasonChamp=(S.flags.seasonChamp||0)+1; S.bonusLoot=(S.bonusLoot||0)+2; note("friends","Season champion","You finished #1 of "+rows.length+" in "+c.season+". Two chests awarded.","gold"); }
+  else if(pos<=3){ S.bonusLoot=(S.bonusLoot||0)+1; note("friends","Season finished #"+pos,"Top 3 among friends in "+c.season+". A chest awarded.","gold"); }
+}
+function arcCard(){
+  if(!S.arc) return `<section class="card violet" data-act="go" data-to="arc" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("bolt","","color:var(--violet-hi);width:28px;height:28px")}<div style="flex:1"><div class="label" style="color:var(--violet-hi)">66-day Reset</div><div class="small">A clear finish line: 3 phases, rising targets, a graduation reward.</div></div></section>`;
+  const d=Math.min(arcDay(),ARC_LEN), ph=arcPhase(d), c=arcCleared();
+  if(S.arc.graduated) return `<section class="card violet" data-act="go" data-to="arc" role="button" tabindex="0"><div class="label" style="color:var(--gold)">Reset complete · grade ${S.arc.grade}</div><div class="small">${S.arc.cleared}/66 days cleared. Start Arc ${(S.arcsDone||0)+1} when you're ready.</div></section>`;
+  return `<section class="card violet" data-act="go" data-to="arc" role="button" tabindex="0"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="label" style="color:var(--violet-hi)">66-day Reset${S.arc.hard?" · Hard Mode":""}</div><span class="num small">Day ${d}/66</span></div>
+    <div style="font-family:var(--f-display);font-weight:700;font-size:18px;margin:4px 0 8px">${ph.n}</div><div class="bar violet"><i style="width:${Math.round(d/ARC_LEN*100)}%"></i></div><div class="tiny muted" style="margin-top:6px">${c} days cleared · ${ph.desc}</div></section>`;
+}
+function vArc(){
+  if(!S.arc||S.arc.graduated){ const g=S.arc&&S.arc.graduated;
+    return `${topbar("66-day Reset","",true)}<div class="stack" style="margin-top:12px">
+    ${g?`<section class="card" style="border-color:rgb(var(--gold-rgb) / .5)"><div class="label" style="color:var(--gold)">Arc ${S.arc.num||1} complete</div><div style="font-family:var(--f-display);font-weight:700;font-size:40px;color:var(--gold-hi)">Grade ${S.arc.grade}</div><div class="small">${S.arc.cleared} of 66 days cleared.</div></section>`:""}
+    <section class="card violet"><h3 style="font-family:var(--f-display);letter-spacing:.06em;margin:0 0 6px">${g?"Begin Arc "+((S.arcsDone||0)+1):"Reset your life in 66 days"}</h3>
+      <p class="small" style="margin:0 0 10px">Research on habit formation puts the average at about 66 days. The arc gives the System a finish line:</p>
+      ${PHASES.map(p=>`<div class="lrow"><span class="num" style="width:62px;color:var(--violet-hi)">Day ${p.from}–${p.to}</span><span class="grow"><b>${p.n}</b><div class="tiny muted">${p.desc}</div></span></div>`).join("")}
+      <p class="tiny muted" style="margin:10px 0">Phase rewards: chest at day 21, chest + key at day 44. Graduation: up to +800 XP, 2 chests, and the Monarch's Sigil for grade A or S.${g?" Each new arc raises targets a further 10%.":""}</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px"><div><div class="label">Hard Mode</div><div class="tiny muted">A missed day (without a shield or pause) restarts the arc from Day 1.</div></div><button class="toggle ${ui.arcHard?"on":""}" data-act="archard" aria-label="Hard Mode"></button></div>
+      <button class="btn violet wide" data-act="arcstart">Begin Day 1</button></section></div>`; }
+  const d=Math.min(arcDay(),ARC_LEN), c=arcCleared(), ph=arcPhase(d);
+  const cells=Array.from({length:ARC_LEN},(_,i)=>{ const k=addDay(S.arc.start,i), h=S.history[k], n=i+1, past=n<d||(n===d&&h&&h.cleared);
+    const cls=h&&h.perfect?"pf":h&&h.cleared?"ok":h&&(h.paused||h.frozen)?"ps":n<d?"miss":n===d?"now":"";
+    return `<span class="ac ${cls}${[21,44,66].includes(n)?" ms":""}" title="Day ${n}">${n}</span>`; }).join("");
+  return `${topbar("66-day Reset",(S.arc.hard?"HARD MODE · ":"")+"ARC "+(S.arc.num||1),true)}
+  <div class="stack">
+  <section class="card violet"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="label" style="color:var(--violet-hi)">Phase ${PHASES.indexOf(ph)+1} · ${ph.n}</div><span class="num">Day ${d} / 66</span></div>
+    <div class="bar violet thick" style="margin:10px 0 6px"><i style="width:${Math.round(d/ARC_LEN*100)}%"></i></div>
+    <div class="tiny" style="color:var(--ink-2)">${ph.desc} Targets ×${arcMult().toFixed(2)}.</div>
+    <div class="kpis" style="margin-top:12px"><div class="kpi"><div class="n num">${c}</div><div class="t">Cleared</div></div><div class="kpi"><div class="n num">${Math.max(0,ARC_LEN-d)}</div><div class="t">Days left</div></div><div class="kpi"><div class="n">${arcGrade(c+Math.max(0,ARC_LEN-d))}</div><div class="t">Best grade</div></div></div></section>
+  <section class="card"><div class="label">Your 66 days</div><div class="arcgrid">${cells}</div><div class="tiny muted" style="margin-top:8px">Bright: perfect · Blue: cleared · Violet: paused/shielded · Red: missed · Outlined: milestones</div></section>
+  <section class="card"><div class="label">Milestones</div>
+    <div class="lrow"><span class="grow">Day 21 · Awakening complete</span><span class="tiny" style="color:${S.arc.paid&&S.arc.paid.p1?"var(--green)":"var(--faint)"}">${S.arc.paid&&S.arc.paid.p1?"CLAIMED":"+150 XP · CHEST"}</span></div>
+    <div class="lrow"><span class="grow">Day 44 · Training complete</span><span class="tiny" style="color:${S.arc.paid&&S.arc.paid.p2?"var(--green)":"var(--faint)"}">${S.arc.paid&&S.arc.paid.p2?"CLAIMED":"+250 XP · CHEST · KEY"}</span></div>
+    <div class="lrow"><span class="grow">Day 66 · Graduation</span><span class="tiny" style="color:var(--faint)">GRADE-BASED</span></div></section>
+  ${S.arc.resets?`<p class="tiny muted center" style="margin:0">Restarted ${S.arc.resets} time${S.arc.resets>1?"s":""} in Hard Mode.</p>`:""}
+  </div>`;
+}
+// ================= setup assessment =================
+const QUIZ=[
+  {id:"wake",q:"When do you usually wake up?",o:["Before 6 AM","6–7 AM","7–8 AM","8–9 AM","After 9 AM"]},
+  {id:"sleep",q:"How much do you sleep on a normal night?",o:["Under 6 hours","6–7 hours","7–8 hours","8+ hours"]},
+  {id:"steps",q:"How many steps do you walk on a normal day?",o:["Under 3,000","3,000–6,000","6,000–9,000","9,000+"]},
+  {id:"exercise",q:"How often do you exercise now?",o:["Rarely","1–2 times a week","3–4 times a week","5+ times a week"]},
+  {id:"reading",q:"How often do you read?",o:["Almost never","Sometimes","A few times a week","Daily"]},
+  {id:"screen",q:"Phone screen time on a typical day?",o:["Under 2 hours","2–4 hours","4–6 hours","6+ hours"]},
+  {id:"focus",q:"How long can you focus on one task?",o:["Under 15 min","15–30 min","30–60 min","Over an hour"]},
+  {id:"goal",q:"What matters most right now?",o:["Fitness and body","Focus and business","Discipline and control","A balanced life"]}
+];
+function quizResult(a){
+  const st=a.steps, ex=a.exercise, rd=a.reading, fc=a.focus, readiness=(st+ex+rd+fc)/4;
+  const diff=readiness<1?"easy":readiness<2.2?"normal":"hard", dm=DIFF[diff], tier=tierOf(S.level);
+  const clamp=v=>Math.max(.5,Math.min(1.7,v));
+  const qscale={walk:clamp([3500,5500,8000,10000][st]/([4000,5000,6000,7000,8000,10000][tier]*dm)),train:[.8,1,1.2,1.4][ex],read:[.6,.8,1.1,1.4][rd],deep:clamp([15,30,45,75][fc]/([30,45,60,75,90,120][tier]*dm))};
+  const wakeH=[5.5,6.5,7.5,8.5,9.5][a.wake], hm=h=>pad(Math.floor(h))+":"+pad(Math.round((h%1)*60));
+  const slots={train:hm(wakeH+.5),deep:hm(wakeH+2),walk:"18:30",read:hm(Math.min(22,wakeH+14)),water:"",disc:hm(Math.min(23,wakeH+15.5))};
+  const S_=[],B_=[];
+  (a.sleep>=2?S_:B_).push(a.sleep>=2?"Your sleep is solid, so recovery is on your side.":"Sleep is short. Fatigue will make quests feel harder than they are.");
+  (st>=2?S_:B_).push(st>=2?"You already move a lot. Steps are an easy win.":"Daily movement is low. Steps start close to where you are and grow.");
+  (ex>=2?S_:B_).push(ex>=2?"You train regularly. The System keeps that momentum.":"Training is irregular. Short sessions first; minimums keep the streak alive.");
+  (rd>=2?S_:B_).push(rd>=2?"Reading is already a habit.":"Reading is rare. Targets start small, a few pages a day.");
+  (a.screen<=1?S_:B_).push(a.screen<=1?"Screen time is under control.":"Screen time is high. The Discipline quest and screen-time check are your main battle.");
+  (fc>=2?S_:B_).push(fc>=2?"You can hold focus. Deep Work will compound fast.":"Focus breaks early. Deep Work starts with short blocks.");
+  return {diff,qscale,slots,strengths:S_,blind:B_,goal:QUIZ[7].o[a.goal]};
+}
+function vQuiz(){
+  const step=ui.quizStep||0;
+  if(step<QUIZ.length){ const q=QUIZ[step];
+    return `<div class="sysbar"><button class="back" data-act="quizback">${ico("back")}${step?"Back":"Skip"}</button><span class="label">${step+1} / ${QUIZ.length}</span></div>
+    <div class="wordmark center" style="margin-top:8px">SYSTEM</div><h1 class="screen-title">Player assessment</h1>
+    <div class="bar" style="margin:8px 0 18px"><i style="width:${Math.round(step/QUIZ.length*100)}%"></i></div>
+    <section class="card hot"><div style="font-weight:700;font-size:19px;margin-bottom:12px">${q.q}</div>
+      <div class="stack" style="gap:8px">${q.o.map((o,i)=>`<button class="btn ghost wide" style="justify-content:flex-start;text-transform:none;letter-spacing:.02em;font-size:15px" data-act="quizpick" data-n="${i}">${esc(o)}</button>`).join("")}</div></section>`; }
+  const r=quizResult(ui.quizAns||{});
+  return `<div class="wordmark center" style="margin-top:12px">SYSTEM</div><h1 class="screen-title">Assessment complete</h1><p class="screen-sub">Focus: ${esc(r.goal)}</p>
+  <div class="stack">
+  <section class="card" style="border-color:rgb(var(--green-rgb, 53 230 160) / .4)"><div class="label" style="color:var(--green)">Strengths</div>${r.strengths.map(x=>`<div class="lrow small">${ico("check","","color:var(--green);width:16px;height:16px")}<span class="grow">${esc(x)}</span></div>`).join("")||`<p class="small muted">We'll build them together.</p>`}</section>
+  <section class="card red"><div class="label" style="color:var(--red-hi)">Blind spots</div>${r.blind.map(x=>`<div class="lrow small">${ico("bolt","","color:var(--red-hi);width:16px;height:16px")}<span class="grow">${esc(x)}</span></div>`).join("")||`<p class="small muted">None flagged.</p>`}</section>
+  <section class="card"><div class="label">Your plan</div>
+    <div class="lrow"><span class="grow">Difficulty</span><b>${r.diff[0].toUpperCase()+r.diff.slice(1)}</b></div>
+    <div class="lrow"><span class="grow">Steps target</span><b>×${r.qscale.walk.toFixed(2)}</b></div>
+    <div class="lrow"><span class="grow">Training length</span><b>×${r.qscale.train.toFixed(2)}</b></div>
+    <div class="lrow"><span class="grow">Reading</span><b>×${r.qscale.read.toFixed(2)}</b></div>
+    <div class="lrow"><span class="grow">Deep Work</span><b>×${r.qscale.deep.toFixed(2)}</b></div>
+    <div class="lrow"><span class="grow">Quest times</span><b class="num">${r.slots.train} · ${r.slots.deep} · ${r.slots.read}</b></div></section>
+  <button class="btn wide" data-act="quizapply" data-t="arc">${ico("bolt")}Apply and begin the 66-day Reset</button>
+  <button class="btn ghost wide" data-act="quizapply" data-t="">Apply plan only</button>
+  </div>`;
+}
+// ================= daily system card + journal =================
+const SYS_MSGS=["The System does not reward intentions. Only completed quests.","Two minutes. That is all the System asks before you decide.","You are not behind. You are at Day {d}. Act like it.","The weak wait for motivation. Players start before it arrives.","Every quest you finish is proof against the voice that says you can't.","Discipline is choosing what you want most over what you want now.","No one is coming to level you up. Only you can.","Do the hardest quest first. Everything after is easier.","A missed day is data. Two missed days is a pattern. Don't make the pattern.","Your future self is watching this exact moment.","Small and daily beats big and someday.","The gate is open. Walk through it before noon.","You don't need a perfect day. You need a cleared day.","Energy follows action, not the other way around.","Rank is not given. It is accumulated, one quest at a time.","When it feels heavy, do the minimum. The streak survives.","Today's boss is weaker than yesterday's excuse.","Start ugly. Finish anyway.","Comfort is the enemy disguised as rest.","The Player who shows up every day wins by default."];
+function sysMessage(){ const k=today(); const i=Math.floor(seeded("msg"+k)()*SYS_MSGS.length); return SYS_MSGS[i].replace("{d}",S.arc&&!S.arc.graduated?Math.min(arcDay(),ARC_LEN)+" of 66":"one"); }
+const MOODS=[["Strong","var(--green)"],["Good","var(--blue-hi)"],["Okay","var(--dim)"],["Low","var(--gold)"],["Drained","var(--red-hi)"]];
+function journalCard(){
+  const h=S.history[today()]||{}; if(h.journal) return "";
+  if(hourNow()<19) return "";
+  return `<section class="card"><div class="label">Daily log · +15 XP</div><p class="small" style="margin:4px 0 8px">How did today go?</p>
+    <div class="moods">${MOODS.map((m,i)=>`<button class="mood${ui.mood===i?" on":""}" data-act="mood" data-n="${i}" style="--c:${m[1]}">${m[0]}</button>`).join("")}</div>
+    <input id="jtext" maxlength="160" placeholder="What helped or stopped you today?" style="width:100%;margin-top:10px;background:var(--bg-2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;color:var(--ink)">
+    <button class="btn sm" style="margin-top:10px" data-act="jsave" ${ui.mood==null?"disabled":""}>Save log</button></section>`;
+}
+function vJournal(){
+  const ks=Object.keys(S.history).filter(k=>S.history[k].journal).sort().reverse();
+  const avg=f=>{ const v=ks.filter(k=>f(S.history[k])).map(k=>S.history[k].journal.mood); return v.length?v.reduce((a,b)=>a+b,0)/v.length:null; };
+  const mc=avg(h=>h.cleared), mm=avg(h=>!h.cleared), lab=v=>v==null?"–":MOODS[Math.round(v)][0];
+  return `${topbar("Journal","Your daily logs",true)}<div class="stack">
+  ${ks.length>=4?`<section class="card"><div class="label">Pattern</div><p class="small" style="margin:6px 0 0">On cleared days you usually feel <b>${lab(mc)}</b>. On missed days, <b>${lab(mm)}</b>.</p></section>`:""}
+  <section class="card">${ks.slice(0,40).map(k=>{ const h=S.history[k], j=h.journal; return `<div class="lrow" style="align-items:flex-start"><span class="grow"><div style="font-weight:600">${parseDay(k).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})} · <span style="color:${MOODS[j.mood][1]}">${MOODS[j.mood][0]}</span></div>${j.text?`<div class="small" style="color:var(--ink-2)">${esc(j.text)}</div>`:""}</span><span class="tiny muted">${h.cleared?"cleared":"not cleared"}</span></div>`; }).join("")||`<p class="empty">Logs appear here. After 7 PM, Home asks how your day went.</p>`}</section></div>`;
+}
+// ================= mind gate (guided breathing) =================
+function vBreathe(){
+  const b=ui.breath; const todayMind=((S.history[today()]||{}).mindMin)||0;
+  if(!b) return `${topbar("Mind gate","Guided breathing",true)}<div class="stack">
+    <section class="card violet"><p class="small" style="margin:0 0 10px">Inhale 4 seconds, hold 4, exhale 6. Calms the body before training or deep work. +5 XP and +4 MP per minute, up to 50 XP a day.</p>
+      <div class="form-row">${[1,3,5,10].map(n=>`<button class="btn violet sm" data-act="breathgo" data-n="${n}">${n} min</button>`).join("")}</div>
+      <div class="tiny muted" style="margin-top:8px">Today: ${todayMind} min · total sessions ${S.mind||0}</div></section></div>`;
+  const left=Math.max(0,b.end-Date.now()); const cyc=((Date.now()-b.start)/1000)%14; const phase=cyc<4?"Breathe in":cyc<8?"Hold":"Breathe out"; const sc=cyc<4?.6+.4*(cyc/4):cyc<8?1:1-.4*((cyc-8)/6);
+  return `<div class="sysbar"><button class="back" data-act="breathstop">${ico("back")}End</button><span class="label" style="color:var(--violet-hi)">Mind gate</span></div>
+  <div class="breath-wrap"><div class="breath-orb" id="borb" style="transform:scale(${sc.toFixed(3)})"></div><div class="breath-txt"><div id="bphase" style="font-family:var(--f-display);font-size:24px;letter-spacing:.1em">${phase}</div><div class="num muted" id="bclock">${Math.floor(left/60000)}:${pad(Math.floor(left%60000/1000))}</div></div></div>`;
+}
+function breathDone(){
+  const b=ui.breath; if(!b) return; ui.breath=null; const k=today(), h=rec(k); const prev=h.mindMin||0; h.mindMin=prev+b.mins; S.mind=(S.mind||0)+1;
+  const xp=Math.max(0,Math.min(50,h.mindMin*5)-Math.min(50,prev*5)); const x=xp?gain(xp):0; S.mp=Math.min(maxMp(),(S.mp||0)+b.mins*4);
+  sfx("done"); toast("Mind gate cleared",b.mins+" min of breathing · +"+x+" XP · +"+b.mins*4+" MP","violet","moon"); commit();
+}
+// ================= phone tracking (Health Connect + screen time) =================
+window.__dbg={go:t=>go(t),arcMult:k=>arcMult(k),S:()=>S};
+window.__health=function(json){
+  try{ const d=JSON.parse(json); if(!S||!d||d.error){ if(d&&d.error) ui.healthErr=d.error; return; }
+    ui.healthAt=Date.now(); ui.healthData=d; const k=today(), h=rec(k), plan=planFor(k); h.prog=h.prog||{};
+    let changed=false;
+    if(d.steps!=null){ if((h.prog.walk||0)<d.steps){ h.prog.walk=d.steps; changed=true; } const w=plan.find(q=>q.id==="walk"); if(w&&w.target&&!h.q.walk&&d.steps>=w.target){ completeQuest("walk"); toast("Verified by Health Connect",fmt(d.steps)+" steps · Steps quest complete","","shoe"); } }
+    if(d.exerciseMin!=null){ const t=plan.find(q=>q.id==="train"); if(t&&t.target&&!h.q.train&&d.exerciseMin>=t.target){ completeQuest("train"); toast("Verified by Health Connect",d.exerciseMin+" min of exercise · Training complete","","dumbbell"); } }
+    if(d.sleepMin!=null){ h.sleepMin=d.sleepMin; if(d.sleepMin>=420&&!h.rested){ h.rested=true; const x=gain(20); toast("Well rested",Math.floor(d.sleepMin/60)+"h "+(d.sleepMin%60)+"m of sleep · +"+x+" XP","","moon"); S.flags.rested=(S.flags.rested||0)+1; } changed=true; }
+    if(changed) commit(); else render();
+  }catch(e){}
+};
+function dayStartMs(){ const d=parseDay(today()); d.setHours(dayStartH(),0,0,0); return d.getTime(); }
+function healthPull(){ if(S&&S.settings.health&&hasA("healthRead")) try{ Android.healthRead(dayStartMs()); }catch(e){} }
+function hStat(force){ if(!hasA("healthStatus")) return "unavailable"; if(force||!ui.hstat){ try{ ui.hstat=Android.healthStatus(); }catch(e){ ui.hstat="unavailable"; } } return ui.hstat; }
+window.__healthPerm=function(){ hStat(true); healthPull(); render(); };
+function socialAfterCutoff(){
+  if(!S||!S.settings.usage||!hasA("socialMinutes")) return null;
+  const late=S.settings.difficulty==="hard"?22:23; const d=new Date(); const k=today(); const base=parseDay(k); const from=new Date(base); from.setHours(late,0,0,0);
+  const day0=new Date(base); day0.setHours(dayStartH(),0,0,0);
+  try{ const all=JSON.parse(Android.socialMinutes(day0.getTime(),Date.now())); const after=Date.now()>from.getTime()?JSON.parse(Android.socialMinutes(from.getTime(),Date.now())):{total:0,apps:{}}; return {all,after,cutoff:late}; }catch(e){ return null; }
+}
 function urgentCard(){
   const u=urgentNow(); if(!u) return "";
   const left=Math.max(0,u.at+u.dur-Date.now()); const m=Math.floor(left/60000), sec=Math.floor(left%60000/1000);
@@ -1628,6 +1844,8 @@ function vGates(){
   <section class="card violet" data-act="go" data-to="castle" role="button" tabindex="0"><div style="display:flex;gap:14px;align-items:center">${ico("crown","","color:#d7c4ff;width:34px;height:34px;filter:drop-shadow(0 0 8px #9a66ff)")}
     <div style="flex:1"><div class="label" style="color:var(--violet-hi)">Demon Castle</div><div style="font-family:var(--f-display);font-weight:700;font-size:22px">Floor ${c.floor}<span class="small muted"> / 100</span></div><div class="tiny" style="color:#d6c8ff">Next boss: Floor ${nextBoss} · ${esc(bossName(nextBoss))}</div></div></div>
     <div class="bar violet" style="margin-top:10px"><i style="width:${Math.min(100,c.floor%100||(c.floor?100:0))}%"></i></div></section>
+  ${arcCard()}
+  <section class="card violet" data-act="go" data-to="breathe" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("moon","","color:var(--violet-hi);width:28px;height:28px")}<div><div class="label" style="color:var(--violet-hi)">Mind gate</div><div class="small">Guided breathing, 1–10 minutes. Restores MP.</div></div></section>
   ${weeklyCard()}
   </div>`;
 }
@@ -1691,7 +1909,7 @@ function vProfile(){
       <div class="lrow"><span class="grow">Dungeons · urgent quests</span><span class="num">${S.runsDone||0} · ${S.urgentDone||0}</span></div></section>`; })()}
   <section class="card"><div class="label">Rank path</div><div class="rank-row">${RANKS.map(x=>`<div>${rankBadge(x.r,40,S.level<x.from)}<span>${x.to>=1000000?x.from+"+":x.from}</span></div>`).join("")}</div>
     <p class="tiny muted" style="margin:6px 0 0">Next: ${(RANKS.find(x=>x.from>S.level)||{label:"You are at the top"}).label}${RANKS.find(x=>x.from>S.level)?" at Level "+RANKS.find(x=>x.from>S.level).from:""}.</p></section>
-  <div class="form-row"><button class="btn ghost sm" data-act="go" data-to="achievements">Achievements</button><button class="btn ghost sm" data-act="go" data-to="body">Body check-in</button><button class="btn ghost sm" data-act="go" data-to="stats">Stats</button></div>
+  <div class="form-row"><button class="btn ghost sm" data-act="go" data-to="achievements">Achievements</button><button class="btn ghost sm" data-act="go" data-to="journal">Journal</button><button class="btn ghost sm" data-act="go" data-to="arc">66-day Reset</button><button class="btn ghost sm" data-act="go" data-to="body">Body check-in</button><button class="btn ghost sm" data-act="go" data-to="stats">Stats</button></div>
   </div>`;
 }
 function checkinDue(){ const b=S.body||[]; if(!b.length) return S.totalDays>=3; return (parseDay(today())-parseDay(b[b.length-1].d))/864e5>=7; }
@@ -1781,7 +1999,7 @@ function openLoot(bonus){
   commit();
 }
 function ovMenu(){
-  const items=[["status","user","Status"],["skills","bolt","Skills"],["stats","stats","Stats"],["castle","crown","Castle"],["friends","users","Friends"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["achievements","trophy","Achievements"],["profile","user","Profile"]];
+  const items=[["status","user","Status"],["skills","bolt","Skills"],["stats","stats","Stats"],["castle","crown","Castle"],["friends","users","Friends"],["settings","gear","Settings"],["store","coin","Store"],["army","ghost","Army"],["journal","book","Journal"],["profile","user","Profile"]];
   const cx=170, cy=178, R=136;
   document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg"><div class="radial">
     <svg style="position:absolute;inset:0;width:100%;height:100%" viewBox="0 0 340 410" aria-hidden="true"><circle cx="${cx}" cy="${cy}" r="${R}" fill="none" stroke="rgba(110,160,255,.25)" stroke-dasharray="2 6"/><circle cx="${cx}" cy="${cy}" r="${R-40}" fill="none" stroke="rgba(110,160,255,.12)"/></svg>
@@ -1803,7 +2021,7 @@ function render(){
   nav.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",tabOf[screen]===b.dataset.nav||(!tabOf[screen]&&b.dataset.nav==="menu"));
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
-  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss}[screen]||vHome;
+  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss,arc:vArc,quiz:vQuiz,journal:vJournal,breathe:vBreathe}[screen]||vHome;
   app.innerHTML=V();
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
@@ -1818,7 +2036,7 @@ document.addEventListener("click",e=>{
   if(a==="ov-bg"&&e.target!==b) return;
   if(a!=="buy") ui.pendingBuy=null; if(a!=="reset") ui.pendingReset=false; if(a!=="retreat") ui.pendingRetreat=false; if(a!=="sesscancel") ui.pendingCancel=false;
   switch(a){
-    case "accept": { const nm=(document.getElementById("onbName")||{}).value; S=fresh(); if(nm&&nm.trim()) S.name=nm.trim().slice(0,24); } note("quest","System notice","Your daily quests have been generated."); log("Accepted the System."); checkAch(true); commit(); toast("System","Welcome, Player. Your daily quests have been generated.","","bolt"); break;
+    case "accept": { const nm=(document.getElementById("onbName")||{}).value; S=fresh(); if(nm&&nm.trim()) S.name=nm.trim().slice(0,24); } note("quest","System notice","Your daily quests have been generated."); log("Accepted the System."); checkAch(true); ui.quizStep=0; ui.quizAns={}; screen="quiz"; commit(); toast("System","Welcome, Player. First, a short assessment.","","bolt"); break;
     case "go": if(b.dataset.to==="allocate") ui.alloc=null; go(b.dataset.to); break;
     case "back": window.__back(); break;
     case "netjoin": (async()=>{ ui.boardBusy=true; ui.netErr=null; render(); try{ const r=await rpc("ps_register",{p_name:S.name}); S.net={id:r.id,secret:r.secret,code:r.code}; commit(); await netBoard(); toast("Hunter network","You're online · Your code is "+r.code,"","users"); }catch(e){ ui.netErr=netErr(e); } ui.boardBusy=false; render(); })(); break;
@@ -1830,6 +2048,20 @@ document.addEventListener("click",e=>{
     case "unfriend": if(ui.pendingUnfriend!==id){ ui.pendingUnfriend=id; render(); break; } (async()=>{ try{ await rpc("ps_remove_friend",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); ui.friendSel=null; ui.pendingUnfriend=null; await netBoard(); toast("Friends","Friend removed.","","users"); }catch(e){ ui.netErr=netErr(e); render(); } })(); break;
     case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
     case "useskill": useSkill(id); break;
+    case "archard": ui.arcHard=!ui.arcHard; render(); break;
+    case "arcstart": startArc(ui.arcHard); break;
+    case "quizstart": ui.quizStep=0; ui.quizAns={}; go("quiz"); break;
+    case "quizpick": { ui.quizAns=ui.quizAns||{}; ui.quizAns[QUIZ[ui.quizStep||0].id]=Number(b.dataset.n); ui.quizStep=(ui.quizStep||0)+1; render(); window.scrollTo(0,0); break; }
+    case "quizback": if(ui.quizStep>0&&ui.quizStep<=QUIZ.length){ ui.quizStep--; render(); } else { screen="home"; hist=[]; render(); } break;
+    case "quizapply": { const r=quizResult(ui.quizAns||{}); S.settings.difficulty=r.diff; S.settings.qscale=r.qscale; S.settings.slots=Object.assign({},S.settings.slots,r.slots); S.quiz={answers:ui.quizAns,at:Date.now(),strengths:r.strengths,blind:r.blind};
+      toast("Plan applied","Difficulty "+r.diff+" · targets and quest times updated","","target"); screen="home"; hist=[]; if(b.dataset.t==="arc"&&(!S.arc||S.arc.graduated)){ startArc(false); } else commit(); break; }
+    case "mood": ui.mood=Number(b.dataset.n); render(); break;
+    case "jsave": { if(ui.mood==null) break; const h=rec(today()); if(h.journal) break; h.journal={mood:ui.mood,text:(document.getElementById("jtext")||{}).value||"",t:Date.now()}; ui.mood=null; const x=gain(15); toast("Daily log saved","+"+x+" XP · The System remembers.","","book"); commit(); break; }
+    case "breathgo": { const n=Number(b.dataset.n); ui.breath={mins:n,start:Date.now(),end:Date.now()+n*60000}; sfx("start"); render(); break; }
+    case "breathstop": ui.breath=null; render(); break;
+    case "healthtoggle": S.settings.health=!S.settings.health; if(S.settings.health&&hasA("healthRequest")) Android.healthRequest(); commit(); setTimeout(healthPull,1500); break;
+    case "usagetoggle": S.settings.usage=!S.settings.usage; if(S.settings.usage&&hasA("usageStatus")&&Android.usageStatus()!=="ok"&&hasA("openUsageSettings")) Android.openUsageSettings(); commit(); break;
+    case "cheer": case "nudge": (async()=>{ try{ await rpc("ps_nudge",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id,p_kind:a}); toast(a==="cheer"?"Cheer sent":"Nudge sent",a==="cheer"?"They'll see it next time they open the app.":"They'll get it when they open the app.","",a==="cheer"?"star":"bolt"); }catch(e){ toast("Friends",netErr(e),"red","x"); } })(); break;
     case "openq": openQuest(id,b.dataset.back&&canBackfill()?addDay(today(),-1):null); break;
     case "sessstart": sessStart(); break;
     case "sesspause": sessPause(); break;
