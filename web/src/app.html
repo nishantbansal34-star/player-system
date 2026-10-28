@@ -314,7 +314,7 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .session-bg ~ *{position:relative;z-index:1}
 .session-bg.scr{opacity:.55;-webkit-mask:linear-gradient(180deg,#000 0%,#000 35%,transparent 88%);mask:linear-gradient(180deg,#000 0%,#000 35%,transparent 88%)}
 .session-bg.scr.deep{opacity:.6;top:120px}
-.artslot.ico{width:100%;height:100%}.artslot.ico>img{object-fit:contain}
+.artslot.ok>svg{display:none}.artslot.ico{width:100%;height:100%}.artslot.ico>img{object-fit:contain}
 .av-img{position:relative;display:inline-block;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 2px rgb(var(--violet-rgb) / .7),0 0 18px rgb(var(--violet-rgb) / .45)}
 .av-img>svg,.av-img>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%}
 .rk-img{position:relative;display:inline-grid;place-items:center;flex:none}
@@ -616,7 +616,7 @@ const ico=(n,cls,st)=>`<svg class="ico ${cls||""}" ${st?`style="${st}"`:""} view
 
 // ================= item art =================
 let gid=0;
-const ART_IMG={core:"art/item-core.webp"};
+const ART_IMG=Object.fromEntries(["core","flask","potion","key","scroll","cloak","sword","ring","crown","sigil"].map(k=>[k,"art/item-"+k+".webp"]));
 function art(key){ return ART_IMG[key]?artSlot(ART_IMG[key],artSvg(key),"ico"):artSvg(key); }
 function artSvg(key){
   const g=++gid;
@@ -1575,7 +1575,7 @@ function bossArt(name,size){
     <g filter="url(#bg${g})"><path d="${sil}" fill="url(#bs${g})" stroke="#ff8a3d" stroke-width="1.4" stroke-opacity=".75"/></g>
     <circle cx="${kind==="reptile"?166:kind==="beast"?100:100}" cy="${kind==="reptile"?102:kind==="beast"?96:52}" r="2.6" fill="#ffd27a"/></svg>`;
 }
-function artSlot(src,fallback,cls){ return `<div class="artslot ${cls||""}">${fallback||""}<img src="${src}" alt="" decoding="async" onerror="this.remove()"></div>`; }
+function artSlot(src,fallback,cls){ return `<div class="artslot ${cls||""}">${fallback||""}<img src="${src}" alt="" decoding="async" onload="this.parentNode.classList.add('ok')" onerror="this.remove()"></div>`; }
 const bossSrc=n=>"art/boss-"+bossSlug(n)+".webp";
 
 // ================= quest sessions (training, deep work) =================
