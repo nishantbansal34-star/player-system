@@ -321,6 +321,20 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .artslot.full{position:absolute;inset:0}
 .session-bg{position:fixed;inset:0;z-index:0;opacity:.35;pointer-events:none;-webkit-mask:linear-gradient(180deg,#000 0%,transparent 75%);mask:linear-gradient(180deg,#000 0%,transparent 75%)}
 .session-bg ~ *{position:relative;z-index:1}
+.session-bg.scr{opacity:.55;-webkit-mask:linear-gradient(180deg,#000 0%,#000 35%,transparent 88%);mask:linear-gradient(180deg,#000 0%,#000 35%,transparent 88%)}
+.session-bg.scr.deep{opacity:.6;top:120px}
+.artslot.ico{width:100%;height:100%}.artslot.ico>img{object-fit:contain}
+.av-img{position:relative;display:inline-block;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 2px rgb(var(--violet-rgb) / .7),0 0 18px rgb(var(--violet-rgb) / .45)}
+.av-img>svg,.av-img>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 30%}
+.rk-img{position:relative;display:inline-grid;place-items:center;flex:none}
+.rk-img>svg{width:100%;height:100%}.rk-img>img{position:absolute;inset:-8%;width:116%;height:116%;object-fit:contain;opacity:0}
+.rk-img>b{position:absolute;inset:0;display:none;place-items:center;padding-bottom:6%;font-family:var(--f-display);font-weight:700;letter-spacing:.02em;text-shadow:0 0 8px rgba(0,0,0,.9),0 0 14px currentColor}
+.rk-img.ok>svg{display:none}.rk-img.ok>img{opacity:1}.rk-img.ok>b{display:grid}
+.boss-card{padding:0;overflow:hidden}.boss-band{height:170px}.boss-band>img{object-position:center 22%}
+.boss-cap{padding:12px 16px 14px}
+.soldier{position:relative;overflow:hidden}.sh-img{position:absolute!important;right:-14px;bottom:-10px;width:84px!important;height:84px!important;opacity:.85;pointer-events:none}
+.soldier.dormant .sh-img{filter:grayscale(1);opacity:.35}
+.sh-lock{float:right;width:90px!important;height:90px!important;margin:-6px -6px 0 8px;filter:grayscale(.7) brightness(.7)}
 .drill-list{list-style:none;margin:8px 0 0;padding:0}
 .drill-list li{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:var(--fs-body)}
 .drill-list li:last-child{border-bottom:0}
@@ -361,7 +375,7 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .tile .rr{font-family:var(--f-ui);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase}
 .tile .qty{position:absolute;top:6px;right:8px;font-family:var(--f-ui);font-weight:700;font-size:12px;color:var(--ink-2)}
 @media (max-width:360px){.boss-title .bname{font-size:24px}.boss-hero{height:240px}.idcard{grid-template-columns:48px 1fr auto}}
-.home-art{position:absolute;left:0;right:0;top:0;height:340px;z-index:-1;opacity:.55;pointer-events:none;-webkit-mask:linear-gradient(180deg,#000 30%,transparent 100%);mask:linear-gradient(180deg,#000 30%,transparent 100%)}
+.home-art{position:absolute;left:0;right:0;top:0;height:460px;z-index:-1;opacity:.75;pointer-events:none;-webkit-mask:linear-gradient(180deg,#000 30%,transparent 100%);mask:linear-gradient(180deg,#000 30%,transparent 100%)}
 .arcgrid{display:grid;grid-template-columns:repeat(11,minmax(0,1fr));gap:4px;margin-top:10px}
 .ac{aspect-ratio:1;border-radius:4px;display:grid;place-items:center;font-family:var(--f-ui);font-size:9px;color:var(--faint);background:rgb(var(--blue-soft-rgb) / .08)}
 .ac.ok{background:var(--blue);color:#fff} .ac.pf{background:var(--blue-hi);color:#08102a} .ac.ps{background:rgb(var(--violet-rgb) / .5);color:#fff} .ac.miss{background:rgb(var(--red-rgb) / .35);color:#fff}
@@ -611,7 +625,9 @@ const ico=(n,cls,st)=>`<svg class="ico ${cls||""}" ${st?`style="${st}"`:""} view
 
 // ================= item art =================
 let gid=0;
-function art(key){
+const ART_IMG={core:"art/item-core.webp"};
+function art(key){ return ART_IMG[key]?artSlot(ART_IMG[key],artSvg(key),"ico"):artSvg(key); }
+function artSvg(key){
   const g=++gid;
   const glow=`<filter id="gl${g}" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`;
   const halo=(c)=>`<radialGradient id="h${g}"><stop offset="0" stop-color="${c}" stop-opacity=".55"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient>`;
@@ -731,7 +747,11 @@ function endRun(ok,reason){
 }
 // ================= rank badges =================
 const RANK_METAL={E:["#e3e8f2","#8c96ab","#3e475c"],D:["#e3e8f2","#8c96ab","#3e475c"],C:["#e8eef8","#9aa6be","#46506a"],B:["#ffe2b0","#d08f3e","#6a3f12"],A:["#eef5ff","#8fb3ea","#34507f"],S:["#fff1bf","#f0b93f","#7c5210"],SS:["#fff1bf","#f0b93f","#7c5210"],"S+":["#efe4ff","#a882ff","#452090"],SSS:["#f4f0ff","#c3b3ff","#4a3a8f"]};
-function rankBadge(code,size,dim){
+const RANK_TINT={E:"grayscale(1) brightness(.85)",D:"hue-rotate(130deg) saturate(1.2)",C:"hue-rotate(-75deg)",B:"hue-rotate(-38deg)",A:"none",S:"hue-rotate(150deg) saturate(1.6) brightness(1.15)",SS:"hue-rotate(20deg) saturate(1.3)",["S+"]:"hue-rotate(-45deg) brightness(1.3)",SSS:"saturate(1.5) brightness(1.2)"};
+const RANK_INK={E:"#d4d9e4",D:"#ffcf9a",C:"#bff4ff",B:"#cfe0ff",A:"#e6d8ff",S:"#ffe7a3",SS:"#ffe2b0",["S+"]:"#eaf6ff",SSS:"#fff2c4"};
+function rankBadge(code,size,dim){ const fs=Math.round(size*(code.length>2?.22:code.length>1?.27:.34));
+  return `<span class="rk-img" style="width:${size}px;height:${size}px;${dim?"opacity:.28;filter:grayscale(.6)":""}" aria-label="${code} rank">${rankSvg(code,size)}<img src="art/rank-frame.webp" alt="" decoding="async" style="filter:${RANK_TINT[code]||"none"}" onload="this.parentNode.classList.add('ok')" onerror="this.remove()"><b style="font-size:${fs}px;color:${RANK_INK[code]||"#fff"}">${code}</b></span>`; }
+function rankSvg(code,size,dim){
   const g=++gid, m=RANK_METAL[code]||RANK_METAL.E, big=["S","SS","S+","SSS"].includes(code);
   const wings=big?`<path d="M14 34 L2 22 L6 44 L12 50Z M86 34 L98 22 L94 44 L88 50Z" fill="url(#m${g})" opacity=".9"/>`:"";
   const crown=code==="SSS"?`<path d="M30 12 L36 0 L42 10 L50 -4 L58 10 L64 0 L70 12Z" fill="url(#m${g})"/>`:code==="SS"||code==="S+"?`<path d="M38 10 L44 2 L50 8 L56 2 L62 10Z" fill="url(#m${g})"/>`:"";
@@ -744,7 +764,8 @@ function rankBadge(code,size,dim){
     <path d="M50 14 L80 25 V52 C80 71 66 84 50 91 C34 84 20 71 20 52 V25 Z" fill="url(#i${g})"/>
     <text x="50" y="${code.length>2?63:66}" text-anchor="middle" font-family="Cinzel,Georgia,serif" font-weight="700" font-size="${fs}" fill="url(#m${g})">${code}</text></g></svg>`;
 }
-function avatar(size){
+function avatar(size){ return `<span class="av-img" style="width:${size}px;height:${size}px">${avatarSvg(size)}<img src="art/avatar.webp" alt="" decoding="async" onerror="this.remove()"></span>`; }
+function avatarSvg(size){
   const g=++gid, L=esc((S&&S.name||"P").trim().charAt(0).toUpperCase()||"P");
   return `<svg viewBox="0 0 120 120" width="${size}" height="${size}" class="avatar" aria-hidden="true"><defs>
     <radialGradient id="a${g}" cx=".5" cy=".35"><stop offset="0" stop-color="#23408f"/><stop offset="1" stop-color="#050a1c"/></radialGradient>
@@ -1316,7 +1337,7 @@ function vArmy(){
   if(S.job==="None"){
     const can=S.level>=25, trial=S.jobTrial===today();
     return `${topbar("Shadow army","",true)}
-    <div class="stack" style="margin-top:12px"><section class="card violet"><div class="label" style="color:var(--violet-hi)">Job change quest</div>
+    <div class="stack" style="margin-top:12px"><section class="card violet">${artSlot("art/shadow.webp","","ico sh-lock")}<div class="label" style="color:var(--violet-hi)">Job change quest</div>
       <h3 style="font-family:var(--f-display);letter-spacing:.08em;margin:8px 0 4px">The Necromancer's Trial</h3>
       <p class="small" style="margin:0 0 10px;color:#d6c8ff">Your shadow army stays sealed until you change jobs.</p>
       <div class="lrow"><span class="qcheck" style="${can?"background:#6b3fe0;border-color:#b08bff":""}">${can?ico("check","","opacity:1;width:16px;height:16px"):""}</span><span class="grow">Reach Level 25 <span class="muted num">(now ${S.level})</span></span></div>
@@ -1330,7 +1351,7 @@ function vArmy(){
   return `${topbar("Shadow army","",true)}
   <div class="stack" style="margin-top:12px">
   ${S.shadows.length?`<div class="army">${S.shadows.map(sh=>{ const st=habitStreak(sh.habit), g=(GRADES.find(x=>st>=x[0])||[0,"Dormant"])[1];
-    return `<section class="card violet soldier${st>0?"":" dormant"}"><div class="label" style="color:var(--violet-hi)">${g}</div><div class="sn">${esc(sh.name)}</div><div class="tiny muted">${hn(sh.habit)} · ${st}d</div></section>`;}).join("")}</div>`:`<section class="card violet"><p style="margin:0">No soldiers yet. Keep a quest going for 21 days, then extract it.</p></section>`}
+    return `<section class="card violet soldier${st>0?"":" dormant"}">${artSlot("art/shadow.webp","","ico sh-img")}<div class="label" style="color:var(--violet-hi)">${g}</div><div class="sn">${esc(sh.name)}</div><div class="tiny muted">${hn(sh.habit)} · ${st}d</div></section>`;}).join("")}</div>`:`<section class="card violet"><p style="margin:0">No soldiers yet. Keep a quest going for 21 days, then extract it.</p></section>`}
   <section class="card"><div class="label">Extraction</div>${habits.filter(id=>!S.shadows.some(s=>s.habit===id)).map(id=>{ const st=habitStreak(id);
     return `<div class="lrow"><div class="grow"><div class="small">${hn(id)}</div><div class="bar violet" style="margin-top:6px"><i style="width:${Math.min(100,Math.round(st/21*100))}%"></i></div><div class="tiny muted num">${st}/21 days</div></div><button class="btn violet sm" data-act="arise" data-id="${id}" ${st>=21&&S.shadows.length<SHADOW_NAMES.length?"":"disabled"}>Arise</button></div>`;}).join("")}</section>
   </div>`;
@@ -1701,7 +1722,7 @@ function arcCard(){
 }
 function vArc(){
   if(!S.arc||S.arc.graduated){ const g=S.arc&&S.arc.graduated;
-    return `${topbar("66-day Reset","",true)}<div class="stack" style="margin-top:12px">
+    return `<div class="session-bg scr" aria-hidden="true">${artSlot("art/arc.webp","","full")}</div>${topbar("66-day Reset","",true)}<div class="stack" style="margin-top:12px">
     ${g?`<section class="card" style="border-color:rgb(var(--gold-rgb) / .5)"><div class="label" style="color:var(--gold)">Arc ${S.arc.num||1} complete</div><div style="font-family:var(--f-display);font-weight:700;font-size:40px;color:var(--gold-hi)">Grade ${S.arc.grade}</div><div class="small">${S.arc.cleared} of 66 days cleared.</div></section>`:""}
     <section class="card violet"><h3 style="font-family:var(--f-display);letter-spacing:.06em;margin:0 0 6px">${g?"Begin Arc "+((S.arcsDone||0)+1):"Reset your life in 66 days"}</h3>
       <p class="small" style="margin:0 0 10px">Research on habit formation puts the average at about 66 days. The arc gives the System a finish line:</p>
@@ -1713,7 +1734,7 @@ function vArc(){
   const cells=Array.from({length:ARC_LEN},(_,i)=>{ const k=addDay(S.arc.start,i), h=S.history[k], n=i+1, past=n<d||(n===d&&h&&h.cleared);
     const cls=h&&h.perfect?"pf":h&&h.cleared?"ok":h&&(h.paused||h.frozen)?"ps":n<d?"miss":n===d?"now":"";
     return `<span class="ac ${cls}${[21,44,66].includes(n)?" ms":""}" title="Day ${n}">${n}</span>`; }).join("");
-  return `${topbar("66-day Reset",(S.arc.hard?"HARD MODE · ":"")+"ARC "+(S.arc.num||1),true)}
+  return `<div class="session-bg scr" aria-hidden="true">${artSlot("art/arc.webp","","full")}</div>${topbar("66-day Reset",(S.arc.hard?"HARD MODE · ":"")+"ARC "+(S.arc.num||1),true)}
   <div class="stack">
   <section class="card violet"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="label" style="color:var(--violet-hi)">Phase ${PHASES.indexOf(ph)+1} · ${ph.n}</div><span class="num">Day ${d} / 66</span></div>
     <div class="bar violet thick" style="margin:10px 0 6px"><i style="width:${Math.round(d/ARC_LEN*100)}%"></i></div>
@@ -1801,12 +1822,12 @@ function vJournal(){
 // ================= mind gate (guided breathing) =================
 function vBreathe(){
   const b=ui.breath; const todayMind=((S.history[today()]||{}).mindMin)||0;
-  if(!b) return `${topbar("Mind gate","Guided breathing",true)}<div class="stack">
+  if(!b) return `<div class="session-bg scr deep" aria-hidden="true">${artSlot("art/mind.webp","","full")}</div>${topbar("Mind gate","Guided breathing",true)}<div class="stack">
     <section class="card violet"><p class="small" style="margin:0 0 10px">Inhale 4 seconds, hold 4, exhale 6. Calms the body before training or deep work. +5 XP and +4 MP per minute, up to 50 XP a day.</p>
       <div class="form-row">${[1,3,5,10].map(n=>`<button class="btn violet sm" data-act="breathgo" data-n="${n}">${n} min</button>`).join("")}</div>
       <div class="tiny muted" style="margin-top:8px">Today: ${todayMind} min · total sessions ${S.mind||0}</div></section></div>`;
   const left=Math.max(0,b.end-Date.now()); const cyc=((Date.now()-b.start)/1000)%14; const phase=cyc<4?"Breathe in":cyc<8?"Hold":"Breathe out"; const sc=cyc<4?.6+.4*(cyc/4):cyc<8?1:1-.4*((cyc-8)/6);
-  return `<div class="sysbar"><button class="back" data-act="breathstop">${ico("back")}End</button><span class="label" style="color:var(--violet-hi)">Mind gate</span></div>
+  return `<div class="session-bg scr deep" aria-hidden="true">${artSlot("art/mind.webp","","full")}</div><div class="sysbar"><button class="back" data-act="breathstop">${ico("back")}End</button><span class="label" style="color:var(--violet-hi)">Mind gate</span></div>
   <div class="breath-wrap"><div class="breath-orb" id="borb" style="transform:scale(${sc.toFixed(3)})"></div><div class="breath-txt"><div id="bphase" style="font-family:var(--f-display);font-size:24px;letter-spacing:.1em">${phase}</div><div class="num muted" id="bclock">${Math.floor(left/60000)}:${pad(Math.floor(left%60000/1000))}</div></div></div>`;
 }
 function breathDone(){
@@ -1845,7 +1866,7 @@ function urgentCard(){
 }
 function vGates(){
   const t=today(), u=urgentFor(t), c=S.castle, nextBoss=Math.ceil((c.floor+1)/10)*10;
-  return `${topbar("Gates","Dungeons, urgent quests and the Demon Castle")}
+  return `<div class="session-bg scr" aria-hidden="true">${artSlot("art/gates.webp","","full")}</div>${topbar("Gates","Dungeons, urgent quests and the Demon Castle")}
   <div class="stack">
   ${urgentCard()}
   ${!urgentNow()?`<section class="card" style="display:flex;gap:12px;align-items:center">${ico("bolt","","color:#ff8fa0;width:26px;height:26px")}<div><div class="label">Urgent quests</div><div class="small">${u&&u.done?"Today's urgent quest is cleared.":u&&u.missed?"Today's urgent quest expired.":"They appear without warning on some days. Keep notifications on."}</div><div class="tiny muted">${S.urgentDone||0} cleared so far</div></div></section>`:""}
@@ -1879,10 +1900,12 @@ function vCastle(){
   const c=S.castle, f=c.floor; const rows=[]; const top=Math.max(f+6,Math.ceil((f+1)/10)*10);
   for(let n=top;n>=Math.max(1,f-3);n--){ const boss=n%10===0, cur=n===f+1, done=n<=f;
     rows.push(`<div class="floor${boss?" boss":""}${cur?" cur":""}${done?" done":""}"><span class="fn">${n}</span><span><div style="font-weight:600">${boss?esc(bossName(n)):done?"Cleared":cur?"Next floor":"Floor "+n}</div><div class="tiny muted">${boss?"Boss · needs a perfect day":cur?"Clear today's quests to climb":done?"":"Locked"}</div></span><span>${boss?ico("crown","","color:#ff8fa0"):done?ico("check","","color:#8fc1ff"):""}</span></div>`); }
-  return `${topbar("Demon Castle","Floor "+f+" · "+(c.bosses||0)+" bosses defeated",true)}
+  const nb=Math.ceil((f+1)/10)*10;
+  return `<div class="session-bg scr" aria-hidden="true">${artSlot("art/castle.webp","","full")}</div>${topbar("Demon Castle","Floor "+f+" · "+(c.bosses||0)+" bosses defeated",true)}
   <div class="stack">
   <section class="card violet"><div class="xp-row" style="margin:0 0 6px"><span>PROGRESS</span><span class="num">${Math.min(f,100)} / 100</span></div><div class="bar violet thick"><i style="width:${Math.min(100,f)}%"></i></div>
     <p class="tiny" style="margin:10px 0 0;color:#d6c8ff">Each cleared day climbs one floor, and a perfect day climbs two. Every 10th floor is a boss that only falls on a perfect day. Bosses drop +200 XP, +150 G, a potion and a chest.${f>=100?" You conquered the castle. The Abyss continues upward.":""}</p></section>
+  <section class="card red boss-card">${artSlot("art/castle-boss.webp","","boss-band")}<div class="boss-cap"><div class="label" style="color:var(--red-hi)">Floor ${nb} boss</div><div style="font-family:var(--f-display);font-weight:700;font-size:20px">${esc(bossName(nb))}</div><div class="tiny muted">Falls only on a perfect day · ${nb-f} floor${nb-f>1?"s":""} away</div></div></section>
   <div class="tower">${rows.join("")}</div>
   </div>`;
 }
