@@ -1027,7 +1027,7 @@ function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH
 
 // ================= navigation =================
 function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
-function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"gate",run:"vortex",castle:"storm",skills:"vortex",session:"vortex",boss:"calm",arc:"storm",quiz:"gate",journal:"moon",breathe:"vortex"}[sc]||"calm"; }
+function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"gate",run:"vortex",castle:"storm",skills:"vortex",session:"vortex",boss:"calm",arc:"storm",quiz:"calm",journal:"moon",breathe:"vortex"}[sc]||"calm"; }
 function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=["army","castle","skills","arc","breathe"].includes(screen)?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
 function unread(){ return S.notes.filter(n=>n.t>S.notesSeen).length; }
