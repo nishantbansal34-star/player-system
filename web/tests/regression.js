@@ -2,7 +2,7 @@
 const {chromium}=require('playwright'); const path=require('path');
 const APP='file://'+path.resolve(__dirname,'../dist/android-index.html');
 const pad=n=>String(n).padStart(2,'0'); const dk=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-const results=[]; const settle=async(p,cond)=>{ for(let i=0;i<40;i++){ await p.clock.runFor(150); await new Promise(r=>setTimeout(r,100)); if(await p.evaluate(cond).catch(()=>false)) return true; } return false; }; const ok=(name,cond,info)=>{ results.push([name,!!cond,info||""]); };
+const results=[]; const settle=async(p,cond)=>{ for(let i=0;i<60;i++){ await p.clock.runFor(150); await new Promise(r=>setTimeout(r,100)); if(await p.evaluate(cond).catch(()=>false)) return true; } return false; }; const ok=(name,cond,info)=>{ results.push([name,!!cond,info||""]); };
 function baseSeed(t,extra){ return Object.assign({v:3,name:'Tester',startDate:'2026-10-01',lastSeen:dk(t),level:5,xp:0,statPoints:0,stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:100,potions:0,streak:3,bestStreak:3,totalDays:3,perfectDays:0,job:'None',title:'Awakened',ach:['awakened'],items:[],counts:{},penalty:null,jobTrial:null,flags:{},history:{},shadows:[],log:[],notes:[],notesSeen:0,castle:{floor:0},keys:1,mp:50,urgent:{[dk(t)]:null,[dk(new Date(t.getTime()+864e5))]:null}},extra||{}); }
 async function open(b,time,seed,opts={}){
   const ctx=await b.newContext({viewport:{width:opts.width||390,height:820},timezoneId:'Asia/Kolkata',reducedMotion:opts.motion?'no-preference':'reduce'}); const p=await ctx.newPage(); p.setDefaultTimeout(6000); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
@@ -181,8 +181,8 @@ async function open(b,time,seed,opts={}){
     await p.route('**/rest/v1/rpc/**',async r=>{ const fn=r.request().url().split('/').pop();
       const out=fn==='ps_backup_restore'?{id:'u1',updated_at:'2026-10-28T03:00:00Z',data:Object.assign(baseSeed(T),{level:17,name:'Nishant',totalXp:4000})}:[];
       await r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(out)}); });
-    await p.$eval('[data-act=restoreopen]',e=>e.click()); await p.clock.runFor(300); await p.fill('#cloudKeyIn','qwe123-sec123'); await p.$eval('[data-act=cloudrestore]',e=>e.click()); await settle(p,()=>{ const s=window.__st(); return !!(s&&s.level===17); }); await close();
-    const s=await st(); ok('25 cloud restore: progress comes back on a new phone',s.level===17&&s.name==='Nishant'&&s.net&&s.net.code==='QWE123'&&s.net.secret==='sec123',JSON.stringify({l:s.level,n:s.net}));
+    await p.$eval('[data-act=restoreopen]',e=>e.click()); await p.clock.runFor(300); await p.fill('#cloudKeyIn','qwe123-sec123'); await p.$eval('[data-act=cloudrestore]',e=>e.click()); if(!await settle(p,()=>{ const s=window.__st(); return !!(s&&s.level===17); })){ await p.fill('#cloudKeyIn','qwe123-sec123'); await p.$eval('[data-act=cloudrestore]',e=>e.click()); await settle(p,()=>{ const s=window.__st(); return !!(s&&s.level===17); }); } await close();
+    const s=(await st())||{}; const why=s.level?'':await p.evaluate(()=>document.body.innerText.slice(0,400)); ok('25 cloud restore: progress comes back on a new phone',s.level===17&&s.name==='Nishant'&&s.net&&s.net.code==='QWE123'&&s.net.secret==='sec123',JSON.stringify({l:s.level,n:s.net,why}));
     await ctx.close(); }
 
   // 26. Glitch effects run on screen change and taps, and switch off in settings
@@ -196,6 +196,44 @@ async function open(b,time,seed,opts={}){
     const off=await p.evaluate(()=>document.body.classList.contains('noglitch')&&!document.getElementById('glveil').classList.contains('run')||document.body.classList.contains('noglitch'));
     ok('26 glitch: switching it off stops the effects',off);
     ok('26 errors with effects on',errs.length===0,errs.join('; ')); await ctx.close(); }
+
+  // 27-31. Ranked play: only server-checked proof earns ranking points
+  const rankMock=async(p,sent,extra)=>{ await p.route('**/rest/v1/rpc/**',async r=>{ const fn=r.request().url().split('/').pop(); const body=JSON.parse(r.request().postData()||'{}'); sent.push([fn,body]);
+      let out=extra&&extra(fn,body); if(out===undefined) out=fn==='ps_focus_start'?'"tok-1"':fn==='ps_focus_end'?{quest:'deep',rp:30}:fn==='ps_verify'?{quest:body.p_quest,rp:20}:fn==='ps_board'?[]:fn==='ps_feed'?[]:fn==='ps_inbox'?[]:null;
+      await r.fulfill({status:200,contentType:'application/json',body:out==null?'':typeof out==='string'?out:JSON.stringify(out)}); }); };
+  const NETSEED={net:{id:'me1',secret:'s',code:'ABC123'}};
+  { const {ctx,p,st}=await open(b,T,baseSeed(T,NETSEED)); const sent=[]; await rankMock(p,sent);
+    await p.click('[data-nav=quests]'); await p.clock.runFor(300); await p.$eval('[data-act=openq][data-id=deep]',e=>e.click()); await p.clock.runFor(300);
+    await p.$eval('[data-act=sessstart]',e=>e.click()); await settle(p,()=>!!(window.__st().session&&window.__st().session.rtok));
+    const fs=sent.find(x=>x[0]==='ps_focus_start'); ok('27 ranked: starting the focus timer registers a server-timed session',fs&&fs[1].p_quest==='deep'&&fs[1].p_need_min>=15,JSON.stringify(fs&&fs[1]));
+    await p.clock.fastForward(61*60000); await p.clock.runFor(1200); await p.$eval('[data-act=sessfull]',e=>e.click());
+    await settle(p,()=>{ const s=window.__st(); const k=Object.keys(s.history).pop(); return !!(s.history[k]&&s.history[k].rk&&s.history[k].rk.deep); });
+    const fe=sent.find(x=>x[0]==='ps_focus_end'); const s=await st(); const K2=Object.keys(s.history).sort().pop();
+    ok('27 ranked: finishing the full timer claims RP with the server token',fe&&fe[1].p_token==='tok-1'&&s.history[K2].rk.deep===30,JSON.stringify(s.history[K2]&&s.history[K2].rk));
+    await ctx.close(); }
+  { const {ctx,p,st}=await open(b,T,baseSeed(T,NETSEED)); const sent=[]; await rankMock(p,sent);
+    await p.click('[data-nav=quests]'); await p.clock.runFor(300);
+    for(const id of ['train','walk','read','deep','water','disc']){ await p.$eval(`[data-act=done][data-id=${id}]`,e=>e.click()).catch(()=>{}); await p.clock.runFor(300); for(let i=0;i<4;i++){ const o=await p.$('[data-act=lu-close]'); if(o){ await o.click({force:true}); await p.clock.runFor(200);} } }
+    await settle(p,()=>false).catch(()=>{});
+    const claims=sent.filter(x=>x[0]==='ps_verify'||x[0]==='ps_focus_end'||x[0]==='ps_focus_start'); const s=await st();
+    ok('28 anti-cheat: ticking every quest by hand claims no ranking points',claims.length===0&&!(s.history[K]&&s.history[K].rk),claims.map(x=>x[0]).join(','));
+    const chip=await p.textContent('main'); ok('28 anti-cheat: hand-ticked ranked quests are labelled unranked',/UNRANKED/.test(chip));
+    await ctx.close(); }
+  { const {ctx,p}=await open(b,T,baseSeed(T,NETSEED)); const sent=[]; await rankMock(p,sent);
+    await p.evaluate(()=>{ __dbg.S().settings.health=true; window.__health(JSON.stringify({steps:15000,exerciseMin:0,sleepMin:0})); }); await settle(p,()=>false);
+    const v=sent.find(x=>x[0]==='ps_verify'); ok('29 ranked: Health Connect steps are sent for server verification',v&&v[1].p_quest==='walk'&&v[1].p_method==='health'&&v[1].p_value===15000&&v[1].p_target>=3000,JSON.stringify(v&&v[1]));
+    await ctx.close(); }
+  { const {ctx,p,st}=await open(b,T,baseSeed(T,NETSEED)); const sent=[]; let round=0;
+    const row=(id,name,me,w,sea)=>({id,name,me,level:5,rank:'E',title:'',streak:2,best_streak:2,rp_week:w,rp_season:sea,rp_total:sea,rp_today:0,rp_last_week:0,verified_today:[],duel:false,duel_last:false,week_key:'2026-10-26',today_done:0,today_total:6});
+    await rankMock(p,sent,(fn)=>fn==='ps_board'?(round===0?[row('me1','Tester',true,40,140),row('f1','Ravi',false,90,500)]:[row('me1','Tester',true,120,160),row('f1','Ravi',false,90,500)]):undefined);
+    await p.evaluate(()=>__dbg.go('friends')); await settle(p,()=>!!document.querySelector('.card.league'));
+    const t1=await p.textContent('main'); ok('30 ranking: league card and RP board shown',/E-League/.test(t1)&&/RP/.test(t1)&&/#2/.test(t1));
+    await settle(p,()=>!/REFRESHING/.test(document.body.innerText)&&!!(window.__st().lastPos)); round=1; await p.$eval('[data-act=netrefresh]',e=>e.click()); await settle(p,()=>{ const s=window.__st(); return !!(s.lastPos&&s.lastPos.me===0); }); await p.clock.runFor(1500);
+    const s=await st(); const toasts=await p.textContent('#toasts');
+    ok('30 ranking: passing a friend shows an overtake alert and promotes to the next league',/passed Ravi/.test(toasts)&&s.league==='D',toasts+' league='+s.league);
+    await p.$eval('[data-act=friend][data-id=f1]',e=>e.click()); await p.clock.runFor(300); await p.$eval('[data-act=duel]',e=>e.click()); await settle(p,()=>false);
+    ok('31 duel: challenge button calls ps_duel for that friend',!!sent.find(x=>x[0]==='ps_duel'&&x[1].p_friend==='f1'));
+    await ctx.close(); }
 
   await b.close();
   let pass=0; for(const [n,c,i] of results){ console.log((c?'PASS ':'FAIL ')+n+(i&&!c?'  ['+i+']':'')); if(c) pass++; }

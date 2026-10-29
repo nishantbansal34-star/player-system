@@ -391,6 +391,16 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .breath-orb{width:240px;height:240px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgb(var(--violet-rgb) / .55),rgb(var(--blue-rgb) / .25) 60%,transparent 72%);box-shadow:0 0 60px rgb(var(--violet-rgb) / .45),inset 0 0 40px rgb(var(--blue-rgb) / .35);border:1.5px solid rgb(var(--violet-rgb) / .6);transition:transform 1s linear}
 .breath-txt{position:absolute;text-align:center}
 @media (prefers-reduced-motion:reduce){.breath-orb{transition:none}}
+/* ===== ranked play ===== */
+.rk-chip{display:inline-flex;white-space:nowrap;align-items:center;gap:3px;margin-left:8px;padding:1px 7px;border-radius:99px;border:1px solid rgb(var(--violet-rgb) / .45);color:var(--violet-hi);font-size:9.5px;letter-spacing:.12em}
+.rk-chip.on{background:rgb(var(--violet-rgb) / .22);border-color:rgb(var(--violet-rgb) / .8);color:#e6dcff}
+.rk-note{display:flex;gap:8px;align-items:flex-start;margin:4px 0 8px;padding:8px 10px;border-radius:10px;background:rgb(var(--violet-rgb) / .14);border:1px solid rgb(var(--violet-rgb) / .4);font-size:12.5px;color:#e2d8ff;position:relative;z-index:1}
+.lg-chip{display:inline-block;padding:0 6px;margin-right:4px;border-radius:6px;background:rgb(var(--violet-rgb) / .2);color:var(--violet-hi);font-family:var(--f-ui);font-size:10px;letter-spacing:.08em}
+.duel-chip{display:inline-block;padding:0 6px;margin-right:4px;border-radius:6px;background:rgb(var(--red-rgb) / .2);color:var(--red-hi);font-family:var(--f-ui);font-size:10px;letter-spacing:.12em}
+.vt-row{display:flex;gap:6px;align-items:center;margin-top:3px}
+.duelbar{height:8px;border-radius:8px;background:rgb(var(--red-rgb) / .45);overflow:hidden;margin-top:4px}.duelbar i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.feed-row{gap:10px}.iconbtn.sm{width:34px;height:34px;min-height:34px}
+.card.league{border-color:rgb(var(--violet-rgb) / .5);background:linear-gradient(160deg,rgb(var(--violet-rgb) / .16),transparent 60%)}
 /* ===== glitch system ===== */
 #glscan{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
 #glscan::before{content:"";position:absolute;left:0;right:0;top:-60px;bottom:-60px;background:repeating-linear-gradient(180deg,rgba(170,200,255,.035) 0 1px,transparent 1px 3px);animation:glDrift 5s linear infinite;will-change:transform}
@@ -1226,7 +1236,7 @@ function vQuests(){
   ${back?"":motivationChips()}
   ${back?"":urgentCard()}
   ${back?"":penaltyCard()}
-  <div class="tiny muted" style="margin:-4px 2px 0">${back?"Tap a quest to log it for yesterday.":"Tap a quest to start it. Tap the circle if it's already done."}</div>
+  <div class="tiny muted" style="margin:-4px 2px 0">${back?"Tap a quest to log it for yesterday.":"Tap a quest to start it. Tap the circle if it's already done."}${!back&&rankedOn()?" Ticking by hand gives XP but no ranking points: use the timer, Health Connect or the screen-time check to rank.":""}</div>
   ${plan.map(q=>{ const d=!!h.q[q.id], mn=!!(h.min&&h.min[q.id]), prog=(h.prog||{})[q.id]||0, live=S.session&&S.session.id===q.id&&!back;
     const pct=q.target?Math.min(1,(live?sessElapsed(S.session)/S.session.durMs*q.target:prog)/q.target):0;
     const st=d?(mn?["MINIMUM","var(--blue-hi)","check"]:["COMPLETED","var(--green)","check"]):live?["ACTIVE","var(--cyan)","bolt"]:pct>0?["IN PROGRESS "+Math.round(pct*100)+"%","var(--cyan)","bolt"]:["NOT STARTED","var(--faint)",null];
@@ -1234,7 +1244,7 @@ function vQuests(){
       <button class="qhit" data-act="openq" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?esc(q.name)+": completed":"Open "+esc(q.name)}"></button>
       <div class="qicon" style="color:${q.c}">${ico(q.icon)}</div>
       <div style="min-width:0"><div class="qname">${esc(q.name)}${slotOf(q.id)&&!back?`<span class="slot">${slotOf(q.id)}</span>`:""}</div><div class="qdetail">${esc(q.detail)}</div>
-        <div class="qstat" style="color:${st[1]}">${st[2]?ico(st[2],"","width:12px;height:12px"):""}${st[0]}</div></div>
+        <div class="qstat" style="color:${st[1]}">${st[2]?ico(st[2],"","width:12px;height:12px"):""}${st[0]}${!back&&rankedOn()&&isRanked(q)?((h.rk||{})[q.id]?`<span class="rk-chip on">${ico("trophy","","width:11px;height:11px")}+${(h.rk||{})[q.id]} RP</span>`:`<span class="rk-chip">${d?"UNRANKED":"RANKED"}</span>`):""}</div></div>
       <div class="qxp">+${Math.round(q.xp*mult()*(back||d?1:hasteAt()*comboMult()))} XP</div>
       <button class="qcheck" data-act="${d?"":"done"}" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?"Completed":"Mark "+esc(q.name)+" done"}" ${d?"disabled":""}>${ico("check")}</button>
       ${pct>0&&!d?`<div class="bar" style="grid-column:2/-1;height:4px"><i style="width:${Math.round(pct*100)}%"></i></div>`:""}
@@ -1490,6 +1500,59 @@ function vSettingsFull(){
 // ================= friends network (Android app only) =================
 const NET={url:"https://csbxmdsquacohndqxslh.supabase.co/rest/v1/rpc/",key:"sb_publishable_iDh6DvN76tEwcq-0ucry3w_coNKAtOQ",apk:"https://github.com/"+REPO+"/releases/latest/download/PlayerSystem.apk"};
 const netOK=()=>!!window.Android;
+// ================= ranked play =================
+// Ranking points (RP) only come from proof the server can check: a focus timer the server timed,
+// Health Connect steps/exercise, or a clean screen-time check after 9 PM. Ticking by hand still gives XP for your level.
+const RANKED={train:"Full training timer or Health Connect",deep:"Full focus timer",read:"Full reading timer",walk:"Steps from Health Connect",disc:"Screen-time check after 9 PM"};
+const QRP={train:30,deep:30,read:20,walk:20,disc:25};
+const LEAGUES=[["E",0],["D",150],["C",400],["B",800],["A",1300],["S",2000],["SS",3000]];
+function leagueOf(rp){ let i=0; LEAGUES.forEach((l,j)=>{ if(rp>=l[1]) i=j; }); const cur=LEAGUES[i], nx=LEAGUES[i+1]; return {code:cur[0],i,next:nx&&nx[0],need:nx?nx[1]-rp:0,pct:nx?(rp-cur[1])/(nx[1]-cur[1]):1}; }
+const rankedOn=()=>netOK()&&S&&S.net;
+const isRanked=(q)=>!!RANKED[q.id]&&!q.custom;
+function rkToday(){ const h=S.history[today()]; return (h&&h.rk)||{}; }
+function rankQueue(item){ if(!rankedOn()) return; S.rankQ=S.rankQ||[]; const key=item.kind+":"+(item.quest||item.token); if(S.rankQ.some(x=>(x.kind+":"+(x.quest||x.token))===key)) return; item.day=today(); S.rankQ.push(item); dirty=true; flush(); rankFlush(); }
+let rankBusy=false;
+async function rankFlush(){
+  if(!rankedOn()||rankBusy||!(S.rankQ&&S.rankQ.length)) return; rankBusy=true;
+  const keep=[];
+  for(const it of S.rankQ.slice()){
+    try{
+      const r=it.kind==="focus"?await rpc("ps_focus_end",{p_id:S.net.id,p_secret:S.net.secret,p_token:it.token})
+        :await rpc("ps_verify",{p_id:S.net.id,p_secret:S.net.secret,p_quest:it.quest,p_method:it.method,p_value:Math.round(it.value||0),p_target:Math.round(it.target||0)});
+      const h=rec(it.day||today()); h.rk=h.rk||{}; h.rk[r.quest]=r.rp; S.rpLocal=(S.rpLocal||0)+r.rp;
+      const qn=(qById(r.quest)||{}).name||r.quest; toast("Ranked","+"+r.rp+" RP · "+qn+" verified","violet","trophy"); glBlip();
+    }catch(e){ const m=e.message||""; if(m==="network"||m==="Failed to fetch"||/fetch|network/i.test(m)) keep.push(it); else if(m==="too_early"&&it.kind==="focus"&&Date.now()-(it.at||0)<36e5) keep.push(it); }
+  }
+  S.rankQ=keep; rankBusy=false; dirty=true; flush(); if(screen==="friends"||screen==="quests"||screen==="home") render();
+}
+async function rankFocusStart(ss){
+  if(!rankedOn()||!RANKED[ss.id]||rkToday()[ss.id]) return;
+  const q=planFor(today()).find(x=>x.id===ss.id); if(!q||q.custom) return;
+  const need=Math.round(ss.durMs/60000);
+  try{ const t=await rpc("ps_focus_start",{p_id:S.net.id,p_secret:S.net.secret,p_quest:ss.id,p_need_min:need}); if(S.session&&S.session.id===ss.id){ S.session.rtok=t; dirty=true; flush(); } }catch(e){}
+}
+function rankDuels(){
+  const b=ui.board||[]; const me=b.find(x=>x.me); if(!me) return;
+  S.duelDone=S.duelDone||{}; const lastKey=me.week_key?addDay(me.week_key,-7):"";
+  b.filter(x=>!x.me&&x.duel_last).forEach(x=>{ const k=lastKey+":"+x.id; if(S.duelDone[k]) return; S.duelDone[k]=1;
+    const won=me.rp_last_week>x.rp_last_week, tie=me.rp_last_week===x.rp_last_week;
+    if(won){ S.bonusLoot=(S.bonusLoot||0)+1; note("friends","Duel won vs "+x.name,me.rp_last_week+" RP to "+x.rp_last_week+". A chest is waiting in Quests.","gold"); setTimeout(()=>toast("Duel won","You beat "+x.name+" · "+me.rp_last_week+" to "+x.rp_last_week+" RP · chest","gold","trophy"),900); }
+    else note("friends",tie?"Duel tied with "+x.name:"Duel lost to "+x.name,me.rp_last_week+" RP to "+x.rp_last_week+". Challenge them again this week.",tie?"":"red"); });
+}
+function rankEvents(){
+  const b=ui.board||[]; const me=b.find(x=>x.me); if(!me) return;
+  const order=b.slice().sort((x,y)=>(y.rp_week||0)-(x.rp_week||0)); const pos={}; order.forEach((x,i)=>pos[x.id]=i);
+  const prev=S.lastPos||null;
+  if(prev&&prev.week===me.week_key&&prev.me!=null){ b.filter(x=>!x.me&&prev.p[x.id]!=null).forEach((x,i)=>{
+      const wasAhead=prev.p[x.id]<prev.me, nowAhead=pos[x.id]<pos[me.id];
+      if(wasAhead&&!nowAhead&&(me.rp_week||0)>0) setTimeout(()=>{ toast("Overtake","You passed "+x.name+" this week · #"+(pos[me.id]+1),"gold","trophy"); sfx("level"); glBlip(); },700+i*900);
+      if(!wasAhead&&nowAhead) setTimeout(()=>toast("Overtaken",x.name+" passed you · "+(x.rp_week||0)+" RP to your "+(me.rp_week||0),"red","bolt"),700+i*900); }); }
+  S.lastPos={week:me.week_key,me:pos[me.id],p:pos};
+  const lg=leagueOf(me.rp_season||0).code; if(S.league&&S.league!==lg&&LEAGUES.findIndex(l=>l[0]===lg)>LEAGUES.findIndex(l=>l[0]===S.league)){ setTimeout(()=>{ fx.mode="burst"; sfx("level"); haptic(120); toast("League promotion","You reached "+lg+"-League this season","gold","crown"); setTimeout(setScene,1500); },400); note("friends","Promoted to "+lg+"-League",(me.rp_season||0)+" RP this season.","gold"); }
+  S.league=lg;
+}
+function rpAgo(t){ const m=Math.max(0,Math.round((Date.now()-new Date(t).getTime())/60000)); return m<1?"now":m<60?m+"m":m<1440?Math.floor(m/60)+"h":Math.floor(m/1440)+"d"; }
+const METHOD_TXT={timer:"timer",health:"Health Connect",screen:"screen time"};
 // ================= cloud backup =================
 function cloudAgo(t){ const m=Math.round((Date.now()-t)/60000); return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" days ago"; }
 const cloudKey=()=>S.net?S.net.code+"-"+S.net.secret:"";
@@ -1514,7 +1577,7 @@ async function cloudRestore(){
   if(i<4){ ui.cloudErr="Paste the full backup key. It looks like ABC123-followed by a long code."; render(); return; }
   const code=raw.slice(0,i).toUpperCase(), secret=raw.slice(i+1); ui.cloudErr=null; cloudBusy=true; render();
   try{ const r=await rpc("ps_backup_restore",{p_code:code,p_secret:secret}); const d=r.data; if(!d||!d.level) throw new Error("no_backup");
-    S=migrate(d); S.net={id:r.id,secret,code}; S.cloud={on:true,at:Date.now()}; processDays(); ui.restoreOpen=false; screen="home"; hist=[];
+    S=migrate(d); S.net={id:r.id,secret:r.secret||secret,code}; S.rankQ=[]; S.lastPos=null; S.cloud={on:true,at:Date.now()}; processDays(); ui.restoreOpen=false; screen="home"; hist=[];
     cloudBusy=false; commit(); toast("Cloud backup","Welcome back, "+S.name+" · Level "+S.level+" restored.","gold","crown"); }
   catch(e){ ui.cloudErr=netErr(e); cloudBusy=false; render(); }
 }
@@ -1543,28 +1606,30 @@ async function rpc(fn,body){
   const t=await r.text(); if(!r.ok){ let m="network"; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
   return t?JSON.parse(t):null;
 }
-const NET_ERR={no_backup:"There's no cloud backup for that key yet.",backup_too_large:"Your data is too large for a cloud backup. Save a backup file instead.",nudge_limit:"You've already sent 2 to this friend in the last 12 hours.",not_friends:"You can only nudge friends.",code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"Your online ID was rejected. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
+const NET_ERR={duel_exists:"You already have a duel with this friend this week.",duel_limit:"You can run up to 3 duels a week.",no_backup:"There's no cloud backup for that key yet.",backup_too_large:"Your data is too large for a cloud backup. Save a backup file instead.",nudge_limit:"You've already sent 2 to this friend in the last 12 hours.",not_friends:"You can only nudge friends.",code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"This phone's hunter profile is no longer valid. It may have been restored on another phone. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
 const netErr=e=>NET_ERR[e&&e.message]||(e&&/fetch|network/i.test(e.message)?NET_ERR.network:"Something went wrong: "+(e&&e.message));
 function netPayload(){
   const t=today(), wk=weekKey(t); let wxp=0; for(let i=0;i<7;i++){ const h=S.history[addDay(wk,i)]; if(h) wxp+=h.xp||0; }
   const h=S.history[t]||{q:{}};
-  return {name:S.name,level:S.level,rank:rankOf(S.level).r,title:S.title,streak:S.streak,best_streak:S.bestStreak,weekly_xp:wxp,week:wk,season:seasonKey(),season_xp:seasonXp(),today_done:doneCount(h),today_total:Q().length,today_date:t,today_cleared:!!h.cleared,total_xp:S.totalXp||0};
+  return {name:S.name,level:S.level,rank:rankOf(S.level).r,title:S.title,streak:S.streak,best_streak:S.bestStreak,weekly_xp:wxp,week:wk,season:seasonKey(),season_xp:seasonXp(),today_done:doneCount(h),today_total:Q().length,today_date:t,today_cleared:!!h.cleared,total_xp:S.totalXp||0,tz_min:-new Date().getTimezoneOffset(),day_start:dayStartH()};
 }
 let netTimer=null, netLast="";
 function netSchedule(delay){ if(!netOK()||!S||!S.net) return; clearTimeout(netTimer); netTimer=setTimeout(netSync,delay==null?6000:delay); }
 async function netSync(){
   if(!netOK()||!S||!S.net) return;
-  const p=netPayload(), key=JSON.stringify(p); if(key===netLast){ cloudMaybe(); return; }
+  const p=netPayload(), key=JSON.stringify(p); if(key===netLast){ cloudMaybe(); rankFlush(); return; }
   try{ await rpc("ps_sync",{p_id:S.net.id,p_secret:S.net.secret,p}); netLast=key; }catch(e){ if(e.message==="not_authorized") ui.netErr=netErr(e); }
-  cloudMaybe();
+  cloudMaybe(); rankFlush();
 }
 async function netBoard(){
   if(!netOK()||!S||!S.net) return;
   ui.boardBusy=true; if(screen==="friends") render();
-  try{ await netSync(); const b=await rpc("ps_board",{p_id:S.net.id,p_secret:S.net.secret}); ui.board=b||[]; ui.boardAt=Date.now(); ui.netErr=null;
+  try{ await netSync(); const b=await rpc("ps_board",{p_id:S.net.id,p_secret:S.net.secret}); ui.board=b||[]; ui.boardAt=Date.now(); ui.netErr=null; rankEvents(); rankDuels(); try{ ui.feed=await rpc("ps_feed",{p_id:S.net.id,p_secret:S.net.secret})||[]; }catch(e){}
     const n=ui.board.filter(x=>!x.me).length; if((S.flags.friends||0)!==n){ S.flags.friends=n; }
     const cur=seasonKey(); S.boardCache={season:cur,rows:ui.board.map(x=>({me:!!x.me,xp:x.season===cur?x.season_xp:0}))};
-    try{ const inbox=await rpc("ps_inbox",{p_id:S.net.id,p_secret:S.net.secret}); (inbox||[]).forEach((m,i)=>setTimeout(()=>{ toast(m.kind==="cheer"?"Cheer received":"Nudge received",m.kind==="cheer"?m.from+" cheered you on · Keep going.":m.from+" nudged you · Time to clear your quests.",m.kind==="cheer"?"gold":"red",m.kind==="cheer"?"star":"bolt"); haptic(80); },400+i*1200)); (inbox||[]).forEach(m=>note("friends",m.kind==="cheer"?"Cheer from "+m.from:"Nudge from "+m.from,m.kind==="cheer"?"Keep going, Player.":"Your friend wants you to clear today's quests.",m.kind==="cheer"?"gold":"red")); }catch(e){}
+    try{ let inbox=await rpc("ps_inbox",{p_id:S.net.id,p_secret:S.net.secret}); (inbox||[]).filter(m=>m.kind==="duel").forEach((m,i)=>{ setTimeout(()=>{ toast("Duel challenge",m.from+" challenged you this week · Most RP by Sunday wins a chest","red","trophy"); haptic(120); glBlip(); },500+i*1200); note("friends","Duel: "+m.from,"You were challenged. Most ranking points by Sunday night wins a chest.","red"); });
+    inbox=(inbox||[]).filter(m=>m.kind!=="duel");
+    (inbox||[]).forEach((m,i)=>setTimeout(()=>{ toast(m.kind==="cheer"?"Cheer received":"Nudge received",m.kind==="cheer"?m.from+" cheered you on · Keep going.":m.from+" nudged you · Time to clear your quests.",m.kind==="cheer"?"gold":"red",m.kind==="cheer"?"star":"bolt"); haptic(80); },400+i*1200)); (inbox||[]).forEach(m=>note("friends",m.kind==="cheer"?"Cheer from "+m.from:"Nudge from "+m.from,m.kind==="cheer"?"Keep going, Player.":"Your friend wants you to clear today's quests.",m.kind==="cheer"?"gold":"red")); }catch(e){}
     dirty=true; flush(); }
   catch(e){ ui.netErr=netErr(e); }
   ui.boardBusy=false; if(screen==="friends"||screen==="home") render();
@@ -1572,15 +1637,16 @@ async function netBoard(){
 function initial(n){ return esc(String(n||"?").trim().charAt(0).toUpperCase()||"?"); }
 function boardSorted(){
   const t=today(), wk=weekKey(t), tab=ui.boardTab||"weekly";
-  const sk=seasonKey(); const val=x=>tab==="level"?x.level*1e6+(x.total_xp||0)/1e3:tab==="streak"?x.streak:tab==="season"?(x.season===sk?x.season_xp:0):(x.week===wk?x.weekly_xp:0);
+  const val=x=>tab==="level"?x.level*1e6+(x.total_xp||0)/1e3:tab==="all"?(x.rp_total||0):tab==="season"?(x.rp_season||0):(x.rp_week||0);
   return (ui.board||[]).slice().sort((a,b)=>val(b)-val(a)||b.level-a.level);
 }
 function boardRow(x,i){
   const t=today(), wk=weekKey(t), tab=ui.boardTab||"weekly";
-  const v=tab==="level"?"Lv "+x.level:tab==="streak"?x.streak+"d":tab==="season"?fmt(x.season===seasonKey()?x.season_xp:0)+" XP":fmt(x.week===wk?x.weekly_xp:0)+" XP";
+  const v=tab==="level"?"Lv "+x.level:tab==="all"?fmt(x.rp_total||0)+" RP":tab==="season"?fmt(x.rp_season||0)+" RP":fmt(x.rp_week||0)+" RP";
+  const vt=(x.verified_today||[]), lg=leagueOf(x.rp_season||0);
   const todayTxt=x.today_date===t?(x.today_cleared?`<span class="chip-ok">cleared today</span>`:`<span class="chip-mid">${x.today_done}/${x.today_total} today</span>`):`<span class="chip-off">not active today</span>`;
   return `<button class="lb-row${x.me?" me":""}" data-act="friend" data-id="${esc(x.id)}"><span class="lb-pos p${i+1}">${i===0?ico("crown","","width:18px;height:18px;margin:auto"):i+1}</span><span class="lb-av">${initial(x.name)}</span>
-    <span style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}${x.me?" (you)":""}</div><div class="lb-sub">${esc(x.rank)}-Rank · ${x.streak}-day streak · ${todayTxt}</div></span>
+    <span style="min-width:0"><div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.name)}${x.me?" (you)":""}</div><div class="lb-sub"><span class="lg-chip">${lg.code}-League</span>${x.duel&&!x.me?`<span class="duel-chip">DUEL</span>`:""} ${x.streak}-day streak · ${todayTxt}</div>${vt.length?`<div class="vt-row">${vt.map(q=>`<span title="${esc(q)} verified" style="color:${(qById(q)||{}).c||"var(--violet-hi)"}">${ico((qById(q)||{}).icon||"check","","width:12px;height:12px")}</span>`).join("")}<span class="tiny" style="color:var(--violet-hi)">+${x.rp_today||0} RP today</span></div>`:""}</span>
     <span class="lb-val num">${v}</span></button>`;
 }
 function vFriends(){
@@ -1591,35 +1657,50 @@ function vFriends(){
       <h3 style="font-family:var(--f-display);letter-spacing:.08em;margin:4px 0 6px">Join the Hunter network</h3>
       <p class="small muted" style="margin:0 0 14px">Get your own hunter code, add friends with theirs, and compete on a live leaderboard.</p>
       <button class="btn wide" data-act="netjoin" ${ui.boardBusy?"disabled":""}>${ui.boardBusy?"Connecting…":"Go online"}</button></section>
-    <section class="card"><div class="label">What friends can see</div><p class="small" style="margin:6px 0 0">Your name, level, rank, title, streak, this week's XP and how many quests you've done today. Your history, body check-ins and everything else stay on this phone.</p></section>
+    <section class="card"><div class="label">How ranking works</div><p class="small" style="margin:6px 0 0">Rankings use ranking points (RP) that the server checks: a focus timer it timed itself, steps or exercise from Health Connect, or a clean screen-time check. Ticking quests by hand still levels you up, but earns no RP, so nobody can top the board by tapping.</p></section>
+    <section class="card"><div class="label">What friends can see</div><p class="small" style="margin:6px 0 0">Your name, level, title, streak, ranking points and which quests you verified today. Each phone has its own hunter profile, so nobody's data can mix with yours. Your history, journal and body check-ins stay on this phone.</p></section>
     ${ui.netErr?`<p class="small" style="color:var(--red-hi);margin:0">${esc(ui.netErr)}</p>`:""}
     </div>`;
   const rows=boardSorted(); const friends=rows.filter(x=>!x.me).length; const tab=ui.boardTab||"weekly";
+  const me=(ui.board||[]).find(x=>x.me)||{}; const lg=leagueOf(me.rp_season||0); const wkOrder=(ui.board||[]).slice().sort((a,b)=>(b.rp_week||0)-(a.rp_week||0)); const myPos=wkOrder.findIndex(x=>x.me)+1;
+  const duels=(ui.board||[]).filter(x=>!x.me&&x.duel);
   const sel=ui.friendSel&&rows.find(x=>x.id===ui.friendSel&&!x.me);
   return `${topbar("Friends","Hunter network",true)}
   <div class="stack">
   <section class="card hot"><div class="label center" style="color:var(--blue-hi)">Your hunter code</div><div class="code-big num" style="margin:6px 0 10px">${esc(S.net.code)}</div>
     <div class="form-row" style="justify-content:center"><button class="btn sm" data-act="netshare">${ico("share","","width:16px;height:16px")}Invite a friend</button><button class="btn ghost sm" data-act="netcopy">${ico("copy","","width:16px;height:16px")}Copy code</button></div></section>
+  <section class="card league">
+    <div style="display:flex;gap:14px;align-items:center">${rankBadge(lg.code,70)}<div style="flex:1;min-width:0"><div class="label" style="color:var(--violet-hi)">Season league</div><div style="font-family:var(--f-display);font-weight:700;font-size:22px">${lg.code}-League</div>
+      <div class="tiny muted">${fmt(me.rp_season||0)} RP this month${lg.next?" · "+lg.need+" RP to "+lg.next+"-League":" · top league"}</div></div></div>
+    <div class="bar violet" style="margin:10px 0 8px"><i style="width:${Math.round(lg.pct*100)}%"></i></div>
+    <div class="kpis"><div class="kpi"><div class="n num">#${myPos||"-"}</div><div class="t">This week</div></div><div class="kpi"><div class="n num">${fmt(me.rp_week||0)}</div><div class="t">Week RP</div></div><div class="kpi"><div class="n num">${fmt(me.rp_today||0)}</div><div class="t">Today RP</div></div></div>
+    ${(S.rankQ||[]).length?`<p class="tiny" style="color:var(--gold);margin:8px 0 0">${S.rankQ.length} verified quest${S.rankQ.length>1?"s":""} waiting to upload. It sends when you're online.</p>`:""}
+  </section>
+  ${duels.length?`<section class="card red"><div class="label" style="color:var(--red-hi)">Duels this week</div>${duels.map(x=>{ const a=me.rp_week||0, b=x.rp_week||0, tot=Math.max(1,a+b); return `<div style="margin-top:10px"><div class="progress-line"><span>You · <b class="num">${a}</b></span><span><b class="num">${b}</b> · ${esc(x.name)}</span></div><div class="duelbar"><i style="width:${Math.round(a/tot*100)}%"></i></div></div>`; }).join("")}<p class="tiny muted" style="margin:8px 0 0">Most RP by Sunday night wins a chest.</p></section>`:""}
   <form class="card form-row" id="addFriend" style="align-items:center"><input id="friendCode" placeholder="Friend's code, e.g. Q38LT6" maxlength="6" autocapitalize="characters" autocomplete="off" style="text-transform:uppercase;letter-spacing:.2em"><button class="btn sm" type="submit">Add</button></form>
   ${ui.netErr?`<p class="small" style="color:var(--red-hi);margin:0 4px">${esc(ui.netErr)}</p>`:""}
   <section class="card">
-    <div class="seg" style="margin-bottom:8px">${[["weekly","Week"],["season","Season"],["level","Level"],["streak","Streak"]].map(t=>`<button class="${tab===t[0]?"on":""}" data-act="boardtab" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
+    <div class="seg" style="margin-bottom:8px">${[["weekly","Week"],["season","Season"],["all","All time"],["level","Level"]].map(t=>`<button class="${tab===t[0]?"on":""}" data-act="boardtab" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
     ${rows.length?rows.map(boardRow).join(""):`<p class="empty">${ui.boardBusy?"Loading the board…":"Pull the board to load it."}</p>`}
+    ${tab==="level"?`<p class="tiny muted" style="margin:8px 0 0">Level includes quests ticked by hand. Week, Season and All time count verified RP only.</p>`:""}
     ${friends===0&&rows.length?`<p class="tiny muted center" style="margin:10px 0 0">It's just you so far. Send your code to a friend to start competing.</p>`:""}
     <div class="progress-line" style="margin-top:10px"><span>${ui.boardAt?"Updated "+new Date(ui.boardAt).toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"}):""}</span><button class="tiny" style="color:var(--blue-hi);font-family:var(--f-ui);letter-spacing:.1em" data-act="netrefresh">${ui.boardBusy?"REFRESHING…":"REFRESH"}</button></div>
   </section>
-  ${sel?`<section class="card"><div style="display:flex;gap:12px;align-items:center">${rankBadge(sel.rank,54)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:17px">${esc(sel.name)}</div><div class="tiny muted">${esc(sel.title||"No title")} · Level ${sel.level} · best streak ${sel.best_streak}d</div><div class="tiny muted">Total XP ${fmt(sel.total_xp||0)}</div></div></div>
+  ${(ui.feed||[]).length?`<section class="card"><div class="label">Live activity</div>${(ui.feed||[]).slice(0,12).map(e=>{ const q=qById(e.quest)||{name:e.quest,icon:"check",c:"var(--violet-hi)"}; return `<div class="lrow feed-row"><span style="color:${q.c}">${ico(q.icon,"","width:18px;height:18px")}</span><span class="grow"><b>${e.me?"You":esc(e.name)}</b> verified ${esc(q.name)} <span class="tiny muted">by ${METHOD_TXT[e.method]||e.method} · ${rpAgo(e.at)}</span></span><span class="num" style="color:var(--violet-hi)">+${e.rp}</span>${e.me?"":`<button class="iconbtn sm" data-act="cheer" data-id="${esc(e.pid)}" aria-label="Cheer ${esc(e.name)}">${ico("star","","width:16px;height:16px")}</button>`}</div>`; }).join("")}</section>`:""}
+  ${sel?`<section class="card"><div style="display:flex;gap:12px;align-items:center">${rankBadge(leagueOf(sel.rp_season||0).code,54)}<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:17px">${esc(sel.name)}</div><div class="tiny muted">${esc(sel.title||"No title")} · Level ${sel.level} · best streak ${sel.best_streak}d</div><div class="tiny muted">Total XP ${fmt(sel.total_xp||0)}</div></div></div>
+    <div class="kpis" style="margin-top:10px"><div class="kpi"><div class="n num">${fmt(sel.rp_week||0)}</div><div class="t">Week RP</div></div><div class="kpi"><div class="n num">${fmt(sel.rp_season||0)}</div><div class="t">Season RP</div></div><div class="kpi"><div class="n num">${sel.level}</div><div class="t">Level</div></div></div>
+    ${sel.duel?`<p class="small" style="color:var(--red-hi);margin:10px 0 0">Duel this week: you ${me.rp_week||0} RP vs ${sel.rp_week||0} RP.</p>`:`<button class="btn red wide" style="margin-top:10px" data-act="duel" data-id="${esc(sel.id)}">${ico("trophy","","width:16px;height:16px")}Challenge to a weekly duel</button>`}
     <div class="form-row" style="margin-top:10px"><button class="btn gold sm" data-act="cheer" data-id="${esc(sel.id)}">${ico("star","","width:16px;height:16px")}Cheer</button><button class="btn sm" data-act="nudge" data-id="${esc(sel.id)}">${ico("bolt","","width:16px;height:16px")}Nudge</button></div>
     <div class="form-row" style="margin-top:8px"><button class="btn red sm" data-act="unfriend" data-id="${esc(sel.id)}">${ui.pendingUnfriend===sel.id?"Tap again to remove":"Remove friend"}</button><button class="btn ghost sm" data-act="friend" data-id="">Close</button></div></section>`:""}
-  <p class="tiny muted center" style="margin:0">Your stats update automatically a few seconds after you complete quests.</p>
+  <p class="tiny muted center" style="margin:0">The board refreshes when you open this screen and a few seconds after you complete quests.</p>
   <button class="tiny muted" style="margin:0 auto;display:block;font-family:var(--f-ui);letter-spacing:.1em" data-act="netleave">${ui.pendingLeave?(S.cloud&&S.cloud.on?"TAP AGAIN: THIS DELETES YOUR ONLINE PROFILE AND CLOUD BACKUP":"TAP AGAIN TO LEAVE AND DELETE YOUR ONLINE PROFILE"):"LEAVE THE NETWORK"}</button>
   </div>`;
 }
 function friendsCard(){
   if(!netOK()) return "";
   if(!S.net) return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("users","","color:#8fc1ff;width:26px;height:26px")}<div style="flex:1"><div class="label">Play with friends</div><div class="small">Add friends with a hunter code and compete on a live leaderboard.</div></div></section>`;
-  const rows=boardSorted().slice(0,3);
-  return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0"><div class="sec-h" style="margin-bottom:4px"><h2>This week's leaderboard</h2><span class="tiny muted" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</span></div>
+  const rows=boardSorted().slice(0,3); const me=(ui.board||[]).find(x=>x.me)||{}; const lg=leagueOf(me.rp_season||0);
+  return `<section class="card" data-act="go" data-to="friends" role="button" tabindex="0"><div class="sec-h" style="margin-bottom:4px"><h2>Ranking · ${lg.code}-League</h2><span class="tiny muted" style="font-family:var(--f-ui);letter-spacing:.1em">ALL ›</span></div>
     ${rows.length?rows.map(boardRow).join(""):`<p class="tiny muted" style="margin:6px 0">Loading…</p>`}</section>`;
 }
 function motivationChips(){
@@ -1684,15 +1765,16 @@ function openQuest(id,dayK){
   const k=dayK||today(); const q=planFor(k).find(x=>x.id===id); if(!q) return;
   if(k!==today()){ completeQuest(id,k); return; }
   const h=S.history[k]||{q:{}}; if(h.q[id]){ toast("Quest complete","Already done today · "+q.name,"","check"); return; }
+  if(ui.readTimer&&id==="read"){ ui.readTimer=false; const mins=Math.max(10,Math.min(60,Math.round((q.target||5)*2))); if(!S.session||S.session.id!=="read") S.session={id:"read",day:k,start:null,pausedAt:null,pausedMs:0,durMs:mins*60000,minMs:5*60000}; go("session"); commit(); return; }
   if((id==="train"||id==="deep")&&q.target&&q.kind==="auto"&&!q.custom){ if(!S.session||S.session.id!==id){ S.session={id,day:k,start:null,pausedAt:null,pausedMs:0,durMs:q.target*60000,minMs:q.minTarget*60000}; } go("session"); commit(); return; }
   ui.tracker=id; trackerSheet();
 }
-function sessStart(){ const ss=S.session; if(!ss) return; if(!ss.start){ ss.start=Date.now(); } else if(ss.pausedAt){ ss.pausedMs+=Date.now()-ss.pausedAt; ss.pausedAt=null; }
+function sessStart(){ const ss=S.session; if(!ss) return; if(!ss.start){ ss.start=Date.now(); rankFocusStart(ss); } else if(ss.pausedAt){ ss.pausedMs+=Date.now()-ss.pausedAt; ss.pausedAt=null; }
   if(hasA("scheduleSessionEnd")) Android.scheduleSessionEnd(Date.now()+Math.max(0,ss.durMs-sessElapsed(ss))); sfx("start"); haptic(30); commit(); }
 function sessPause(){ const ss=S.session; if(!ss||!ss.start||ss.pausedAt) return; ss.pausedAt=Date.now(); if(hasA("cancelSessionEnd")) Android.cancelSessionEnd(); commit(); }
 function sessFinish(min){
   const ss=S.session; if(!ss) return; const el=sessElapsed(ss); if(min?el<ss.minMs:el<ss.durMs) return;
-  const id=ss.id; S.session=null; if(hasA("cancelSessionEnd")) Android.cancelSessionEnd();
+  const id=ss.id; S.session=null; if(hasA("cancelSessionEnd")) Android.cancelSessionEnd(); if(!min&&ss.rtok) rankQueue({kind:"focus",token:ss.rtok,quest:id,at:Date.now()});
   const before=S.totalXp||0; screen="quests"; hist=[]; completeQuest(id,null,min?{min:true}:{}); xpReveal((S.totalXp||0)-before, min?"MINIMUM COMPLETED":"TRAINING COMPLETE");
 }
 function xpReveal(x,label){
@@ -1707,10 +1789,11 @@ function vSession(){
   const q=planFor(today()).find(x=>x.id===ss.id)||{name:"Quest",detail:"",xp:0};
   const el=sessElapsed(ss), left=Math.max(0,ss.durMs-el), done=Math.min(1,el/ss.durMs), canMin=el>=ss.minMs, canFull=el>=ss.durMs;
   const running=ss.start&&!ss.pausedAt, fmtT=ms=>pad(Math.floor(ms/60000))+":"+pad(Math.floor(ms%60000/1000));
-  const title=ss.id==="train"?"Physical training":"Deep work", sub=ss.id==="train"?(q.split==="Mobility"?"Mobility & stretch":(q.split||"")+" day"):"Focus protocol";
+  const title=ss.id==="train"?"Physical training":ss.id==="read"?"Reading":"Deep work", sub=ss.id==="train"?(q.split==="Mobility"?"Mobility & stretch":(q.split||"")+" day"):ss.id==="read"?q.target+" pages, phone away":"Focus protocol";
   const xpFull=Math.round(q.xp*mult()*hasteAt()*comboMult()), xpMin=Math.round(xpFull*.4);
   return `<div class="session-bg">${artSlot("art/training.webp","","full")}</div>
   <div class="sysbar"><button class="back" data-act="back" aria-label="Back to quests">${ico("back")}Quests</button><span class="label" style="color:var(--cyan)">Training protocol</span></div>
+  ${rankedOn()&&RANKED[ss.id]&&!rkToday()[ss.id]?`<div class="rk-note">${ico("trophy","","width:14px;height:14px")}<span>${ss.rtok?"Ranked session: finish the full timer for +"+QRP[ss.id]+" RP":"Ranked: start the timer while online, then finish it in full for +"+QRP[ss.id]+" RP"}. The minimum gives XP but no RP.</span></div>`:""}
   <h1 class="screen-title" style="margin-top:6px">${title}</h1><p class="screen-sub" style="letter-spacing:.2em;text-transform:uppercase;color:var(--violet-hi)">${esc(sub)}</p>
   <div class="run-ring">${ring(260,done,10,"ss")}<div class="ring-center"><span class="l">TIME REMAINING</span><span class="n num" id="sessclock">${fmtT(left)}</span><span class="x num">/ ${fmtT(ss.durMs)}</span></div></div>
   <div class="stack">
@@ -1734,6 +1817,7 @@ function trackerSheet(){
       ${id==="water"?`<div class="glasses">${Array.from({length:q.target},(_,i)=>`<span class="${i<prog?"on":""}" aria-hidden="true"></span>`).join("")}</div>`:""}
       <div class="form-row" style="justify-content:center">${steps.map(n=>`<button class="btn ghost sm" data-act="trk" data-n="${n}">+${fmt(n)}</button>`).join("")}${id==="walk"?`<input id="trkSet" type="number" inputmode="numeric" placeholder="Set total" style="max-width:120px">`:""}<button class="btn ghost sm" data-act="trk" data-n="-${steps[0]}" aria-label="Undo last step">−${fmt(steps[0])}</button></div>
       <div class="stack" style="margin-top:12px;gap:8px">
+        ${id==="read"?`<button class="btn violet wide" data-act="readtimer">${ico("bolt")}Read with a timer${rankedOn()&&!rkToday().read?" · ranked +20 RP":""}</button>`:""}
         <button class="btn wide" data-act="trkfull" ${prog>=q.target?"":"disabled"}>${ico("check")}${prog>=q.target?"Complete · +"+xpFull+" XP":"Reach "+fmt(q.target)+" "+q.unit+" to complete"}</button>
         ${canMin?`<button class="btn ghost wide" data-act="trkmin" ${prog>=q.minTarget&&prog<q.target?"":"disabled"}>${prog>=q.minTarget?"Claim minimum · +"+xpMin+" XP":"Minimum at "+fmt(q.minTarget)+" "+(q.minTarget===1?q.unit.replace(/s$/,""):q.unit)}</button>`:""}
       </div>`;
@@ -1932,8 +2016,10 @@ window.__health=function(json){
   try{ const d=JSON.parse(json); if(!S||!d||d.error){ if(d&&d.error) ui.healthErr=d.error; return; }
     ui.healthAt=Date.now(); ui.healthData=d; const k=today(), h=rec(k), plan=planFor(k); h.prog=h.prog||{};
     let changed=false;
-    if(d.steps!=null){ if((h.prog.walk||0)<d.steps){ h.prog.walk=d.steps; changed=true; } const w=plan.find(q=>q.id==="walk"); if(w&&w.target&&!h.q.walk&&d.steps>=w.target){ completeQuest("walk"); toast("Verified by Health Connect",fmt(d.steps)+" steps · Steps quest complete","","shoe"); } }
-    if(d.exerciseMin!=null){ const t=plan.find(q=>q.id==="train"); if(t&&t.target&&!h.q.train&&d.exerciseMin>=t.target){ completeQuest("train"); toast("Verified by Health Connect",d.exerciseMin+" min of exercise · Training complete","","dumbbell"); } }
+    if(d.steps!=null){ if((h.prog.walk||0)<d.steps){ h.prog.walk=d.steps; changed=true; } const w=plan.find(q=>q.id==="walk"); if(w&&w.target&&!h.q.walk&&d.steps>=w.target){ completeQuest("walk"); toast("Verified by Health Connect",fmt(d.steps)+" steps · Steps quest complete","","shoe"); }
+      if(w&&w.target&&!w.custom&&d.steps>=w.target&&!(h.rk&&h.rk.walk)) rankQueue({kind:"verify",quest:"walk",method:"health",value:d.steps,target:w.target}); }
+    if(d.exerciseMin!=null){ const t=plan.find(q=>q.id==="train"); if(t&&t.target&&!h.q.train&&d.exerciseMin>=t.target){ completeQuest("train"); toast("Verified by Health Connect",d.exerciseMin+" min of exercise · Training complete","","dumbbell"); }
+      if(t&&t.target&&!t.custom&&d.exerciseMin>=t.target&&!(h.rk&&h.rk.train)) rankQueue({kind:"verify",quest:"train",method:"health",value:d.exerciseMin,target:t.target}); }
     if(d.sleepMin!=null){ h.sleepMin=d.sleepMin; if(d.sleepMin>=420&&!h.rested){ h.rested=true; const x=gain(20); toast("Well rested",Math.floor(d.sleepMin/60)+"h "+(d.sleepMin%60)+"m of sleep · +"+x+" XP","","moon"); S.flags.rested=(S.flags.rested||0)+1; } changed=true; }
     if(changed) commit(); else render();
   }catch(e){}
@@ -2199,7 +2285,8 @@ document.addEventListener("click",e=>{
     case "sessmin": sessFinish(true); break;
     case "sesscancel": if(!ui.pendingCancel){ ui.pendingCancel=true; render(); break; } ui.pendingCancel=false; S.session=null; if(hasA("cancelSessionEnd")) Android.cancelSessionEnd(); screen="quests"; hist=[]; commit(); break;
     case "trk": { const n=Number(b.dataset.n); const set=document.getElementById("trkSet"); if(set&&set.value){ const k=today(), h=rec(k); h.prog=h.prog||{}; h.prog[ui.tracker]=Math.max(0,Number(set.value)||0); commit(); trackerSheet(); break; } trkAdd(n); break; }
-    case "trkfull": { const id2=ui.tracker; ui.tracker=null; closeOv(); const before=S.totalXp||0; completeQuest(id2); break; }
+    case "trkfull": { const id2=ui.tracker; ui.tracker=null; closeOv(); if(id2==="disc"){ const sc=socialAfterCutoff(); if(sc&&sc.after.total===0&&hourNow()>=21) rankQueue({kind:"verify",quest:"disc",method:"screen",value:0,target:0}); } completeQuest(id2); break; }
+    case "readtimer": ui.tracker=null; closeOv(); ui.readTimer=true; openQuest("read"); break;
     case "trkmin": { const id2=ui.tracker; ui.tracker=null; closeOv(); completeQuest(id2,null,{min:true}); break; }
     case "donemin": completeQuest(id,null,{min:true}); break;
     case "start2": ovStart(id); break;
@@ -2207,6 +2294,7 @@ document.addEventListener("click",e=>{
     case "startmin": ui.startQ=null; closeOv(); completeQuest(id,null,{min:true}); break;
     case "startclose": ui.startQ=null; closeOv(); render(); break;
     case "nagtoggle": S.settings.nag=S.settings.nag===false; commit(); break;
+    case "duel": (async()=>{ try{ await rpc("ps_duel",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); toast("Duel sent","Most RP by Sunday night wins a chest","red","trophy"); glBlip(); netBoard(); }catch(e){ toast("Duel",netErr(e),"red","x"); } })(); break;
     case "cloudon": cloudEnable(); break;
     case "cloudoff": S.cloud.on=false; ui.showKey=false; commit(); toast("Cloud backup","Turned off. Your last online backup is kept.","","shield"); break;
     case "cloudnow": cloudSave(true); break;
