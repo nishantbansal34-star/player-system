@@ -316,6 +316,7 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .session-bg{position:fixed;inset:0;z-index:0;opacity:.35;pointer-events:none;-webkit-mask:linear-gradient(180deg,#000 0%,transparent 75%);mask:linear-gradient(180deg,#000 0%,transparent 75%)}
 .session-bg ~ *{position:relative;z-index:1}
 .session-bg.scr{opacity:.55;-webkit-mask:linear-gradient(180deg,#000 0%,#000 35%,transparent 88%);mask:linear-gradient(180deg,#000 0%,#000 35%,transparent 88%)}
+.session-bg.scr.soft{opacity:.32;-webkit-mask:linear-gradient(180deg,#000 0%,rgba(0,0,0,.85) 40%,transparent 92%);mask:linear-gradient(180deg,#000 0%,rgba(0,0,0,.85) 40%,transparent 92%)}.session-bg.scr.soft img{object-position:var(--bgpos,50% 30%)}
 .session-bg.scr.deep{opacity:.6;top:120px}
 .artslot.ok>svg{display:none}.artslot.ico{width:100%;height:100%}.artslot.ico>img{object-fit:contain}
 .av-img{position:relative;display:inline-block;border-radius:50%;overflow:hidden;flex:none;box-shadow:0 0 0 2px rgb(var(--violet-rgb) / .7),0 0 18px rgb(var(--violet-rgb) / .45)}
@@ -1091,7 +1092,7 @@ function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH
 
 // ================= navigation =================
 function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
-function sceneFor(sc){ return {home:"calm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"calm",run:"vortex",castle:"calm",skills:"vortex",session:"calm",boss:"calm",arc:"calm",quiz:"calm",journal:"moon",breathe:"calm"}[sc]||"calm"; }
+function sceneFor(sc){ return {run:"vortex"}[sc]||"calm"; }
 function setScene(){ if(document.getElementById("splash")){ fx.mode="calm"; return; } fx.mode=S?sceneFor(screen):"calm"; fx.hue=["army","castle","skills","arc","breathe"].includes(screen)?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
 function unread(){ return S.notes.filter(n=>n.t>S.notesSeen).length; }
@@ -2080,6 +2081,7 @@ function clearToasts(){ document.getElementById("toasts").innerHTML=""; }
 function ovSheet(html){ document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg"><section class="card hot sheet">${html}</section></div>`; }
 
 // ================= render =================
+const SCREEN_BG={profile:["hero","70% 30%"],status:["splash","50% 40%"],allocate:["splash","50% 40%"],stats:["arc","50% 30%"],skills:["mind","50% 30%"],army:["castle","50% 35%"],journal:["mind","50% 60%"],quests:["training","50% 20%"],inventory:["gates","50% 30%"],achievements:["arc","50% 20%"],friends:["gates","30% 40%"],store:["castle-boss","50% 25%"],notes:["hero","20% 40%"],body:["training","50% 20%"],settings:["splash","50% 30%"],quiz:["splash","50% 40%"]};
 function render(){
   const app=document.getElementById("app"), nav=document.getElementById("nav");
   if(!S){ nav.hidden=true; fx.mode="calm"; app.innerHTML=vAwaken(); glAfter("awaken"); return; }
@@ -2089,7 +2091,7 @@ function render(){
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
   const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss,arc:vArc,quiz:vQuiz,journal:vJournal,breathe:vBreathe}[screen]||vHome;
-  app.innerHTML=V(); glAfter(screen);
+  const bgs=SCREEN_BG[screen]; app.innerHTML=(bgs?`<div class="session-bg scr soft" aria-hidden="true">${artSlot("art/"+bgs[0]+".webp","","full")}</div>`:"")+V(); if(bgs) app.firstElementChild.style.setProperty("--bgpos",bgs[1]); glAfter(screen);
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
   if(S.pendingLevelUp && !document.getElementById("ov").innerHTML) setTimeout(ovLevelUp,350);
