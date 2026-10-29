@@ -236,7 +236,7 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .stars{color:var(--gold-hi);letter-spacing:2px;font-size:12px;text-shadow:0 0 8px rgb(var(--gold-rgb) / .8)}
 .nav button .navic{width:44px;height:30px;border-radius:99px;display:grid;place-items:center;transition:background .2s,box-shadow .2s}
 .nav button.on .navic{background:radial-gradient(circle,rgb(var(--blue-rgb) / .45),rgb(var(--blue-rgb) / .08) 70%);box-shadow:0 0 16px rgb(var(--blue-rgb) / .45),inset 0 0 0 1px rgb(var(--blue-soft-rgb) / .45)}
-#splash{position:fixed;inset:0;z-index:90;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:7vh 24px calc(10vh + env(safe-area-inset-bottom,0px));transition:opacity .6s ease;pointer-events:none}
+#splash{position:fixed;inset:0;z-index:90;background:#03050D;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:7vh 24px calc(10vh + env(safe-area-inset-bottom,0px));transition:opacity .6s ease;pointer-events:none}
 #splash.gone{opacity:0}
 #splash::before{content:"";position:absolute;inset:0;z-index:-1;background:url(art/splash.webp) center 46%/cover no-repeat;animation:splzoom 2.2s ease-out both}
 @keyframes splzoom{from{transform:scale(1.08);opacity:0}to{transform:scale(1);opacity:1}}
@@ -381,6 +381,39 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .breath-orb{width:240px;height:240px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgb(var(--violet-rgb) / .55),rgb(var(--blue-rgb) / .25) 60%,transparent 72%);box-shadow:0 0 60px rgb(var(--violet-rgb) / .45),inset 0 0 40px rgb(var(--blue-rgb) / .35);border:1.5px solid rgb(var(--violet-rgb) / .6);transition:transform 1s linear}
 .breath-txt{position:absolute;text-align:center}
 @media (prefers-reduced-motion:reduce){.breath-orb{transition:none}}
+/* ===== glitch system ===== */
+#glscan{position:fixed;inset:0;z-index:60;pointer-events:none;overflow:hidden}
+#glscan::before{content:"";position:absolute;left:0;right:0;top:-60px;bottom:-60px;background:repeating-linear-gradient(180deg,rgba(170,200,255,.035) 0 1px,transparent 1px 3px);animation:glDrift 5s linear infinite;will-change:transform}
+#glscan::after{content:"";position:absolute;left:0;right:0;top:0;height:120px;background:linear-gradient(180deg,transparent,rgba(110,160,255,.055) 55%,rgba(160,210,255,.09) 62%,transparent);animation:glRoll 8s linear infinite;will-change:transform}
+@keyframes glDrift{from{transform:translate3d(0,0,0)}to{transform:translate3d(0,30px,0)}}
+@keyframes glRoll{from{transform:translate3d(0,-130px,0)}to{transform:translate3d(0,calc(100vh + 20px),0)}}
+#glsweep{position:fixed;left:0;right:0;top:0;height:110px;z-index:61;pointer-events:none;opacity:0;background:linear-gradient(180deg,transparent,rgba(66,221,245,.07) 60%,rgba(150,235,255,.45) 96%,rgba(255,255,255,.7) 98%,transparent);mix-blend-mode:screen;will-change:transform,opacity}
+#glsweep.run{animation:glSweep .6s cubic-bezier(.45,0,.2,1)}
+@keyframes glSweep{0%{opacity:1;transform:translate3d(0,-110px,0)}85%{opacity:.9}100%{opacity:0;transform:translate3d(0,100vh,0)}}
+#glband{position:fixed;left:0;right:0;height:2px;z-index:61;pointer-events:none;opacity:0;background:linear-gradient(90deg,transparent,rgba(255,42,109,.9) 18%,rgba(34,227,255,.95) 55%,rgba(139,92,255,.8) 80%,transparent);box-shadow:0 7px 0 rgba(34,227,255,.35),0 -11px 0 rgba(255,42,109,.3),0 18px 0 rgba(139,92,255,.22);will-change:transform,opacity}
+#glband.run{animation:glBand .32s steps(1,end)}
+@keyframes glBand{0%{opacity:.95;transform:translate3d(-8%,0,0) scaleY(1)}20%{opacity:.4;transform:translate3d(6%,4px,0) scaleY(3)}40%{opacity:.9;transform:translate3d(-3%,-6px,0) scaleY(1.5)}60%{opacity:.25;transform:translate3d(2%,10px,0)}80%{opacity:.7;transform:translate3d(-1%,2px,0) scaleY(2)}100%{opacity:0}}
+#glveil{position:fixed;inset:0;z-index:25;pointer-events:none;opacity:0;background:rgba(3,5,13,.94)}
+#glveil.run{animation:glVeil .44s linear both}
+@keyframes glVeil{0%{opacity:1;clip-path:inset(0 0 0 0)}10%{clip-path:inset(38% 0 0 0)}16%{clip-path:inset(66% 0 0 0);translate:-6px 0}22%{clip-path:inset(52% 0 0 0);translate:4px 0}30%{clip-path:inset(82% 0 0 0);translate:0 0}38%{clip-path:inset(100% 0 0 0);opacity:1}40%,100%{clip-path:inset(100% 0 0 0);opacity:0}}
+#app.gl-enter .card{animation:glCard .55s cubic-bezier(.2,.85,.25,1) both;animation-delay:calc(var(--gi,0) * 42ms + 60ms)}
+@keyframes glCard{0%{opacity:0;translate:0 12px}45%{opacity:1;translate:0 0}55%{translate:5px 0;opacity:.6}61%{translate:-3px 0;opacity:1}67%{translate:2px 0;opacity:.8}73%{translate:0 0;opacity:1}100%{opacity:1;translate:0 0}}
+.gtext{position:relative}
+.gtext::before,.gtext::after{content:attr(data-text);position:absolute;inset:0;pointer-events:none;opacity:0;text-shadow:none;mix-blend-mode:screen}
+.gtext::before{color:#ff2a6d}.gtext::after{color:#22e3ff}
+.gtext.gl-burst{animation:glJit .62s steps(1,end)}
+.gtext.gl-burst::before{animation:glA .62s steps(1,end)}
+.gtext.gl-burst::after{animation:glB .62s steps(1,end)}
+@keyframes glJit{0%{translate:0 0}12%{translate:-2px 0}24%{translate:2px 0}36%{translate:0 0}48%{translate:1px 0}60%,100%{translate:0 0}}
+@keyframes glA{0%{opacity:.9;clip-path:inset(12% 0 68% 0);translate:-4px 0}14%{clip-path:inset(58% 0 12% 0);translate:3px 0}28%{clip-path:inset(30% 0 48% 0);translate:-2px 0}42%{clip-path:inset(80% 0 4% 0);translate:4px 0}56%{opacity:.7;clip-path:inset(4% 0 84% 0);translate:-1px 0}70%{opacity:0}100%{opacity:0}}
+@keyframes glB{0%{opacity:.85;clip-path:inset(64% 0 14% 0);translate:4px 0}14%{clip-path:inset(8% 0 70% 0);translate:-3px 0}28%{clip-path:inset(44% 0 30% 0);translate:2px 0}42%{clip-path:inset(20% 0 62% 0);translate:-4px 0}56%{opacity:.6;clip-path:inset(86% 0 2% 0);translate:2px 0}70%{opacity:0}100%{opacity:0}}
+.gl-tap{animation:glTap .28s cubic-bezier(.3,.7,.3,1)}
+@keyframes glTap{0%{translate:0 0}18%{translate:-2px 0;filter:brightness(1.35) hue-rotate(25deg);box-shadow:-3px 0 0 rgba(255,42,109,.55),3px 0 0 rgba(34,227,255,.6)}36%{translate:2px 0;box-shadow:2px 0 0 rgba(255,42,109,.4),-2px 0 0 rgba(34,227,255,.45)}54%{translate:-1px 0;filter:none}100%{translate:0 0}}
+.toast{animation:glToast .52s cubic-bezier(.2,.85,.25,1) both}
+@keyframes glToast{0%{opacity:0;translate:0 -14px;clip-path:inset(0 0 100% 0)}30%{opacity:1;translate:0 0;clip-path:inset(0 0 45% 0)}40%{translate:5px 0;clip-path:inset(35% 0 0 0)}50%{translate:-3px 0;clip-path:inset(0 0 0 0)}60%{translate:1px 0}100%{opacity:1;translate:0 0;clip-path:inset(-30px -30px -30px -30px)}}
+body.noglitch #glveil,body.noglitch #glscan,body.noglitch #glsweep,body.noglitch #glband{display:none}
+body.noglitch .toast{animation:tin .25s ease-out both}
+@media (prefers-reduced-motion:reduce){#glveil,#glscan,#glsweep,#glband{display:none}#app.gl-enter .card,.gl-tap,.gtext.gl-burst,.gtext.gl-burst::before,.gtext.gl-burst::after{animation:none!important}.toast{animation:tin .2s ease-out both}}
 /* heatmap + charts */
 .heat{display:flex;gap:3px;width:max-content}
 .heat span{display:flex;flex-direction:column;gap:3px}
@@ -480,6 +513,7 @@ textarea{min-height:90px;font-family:var(--f-ui);font-size:12px}
   <button data-nav="menu"><span class="navic"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg></span>More</button>
 </div></nav>
 <div id="ov"></div>
+<div id="glveil" aria-hidden="true"></div><div id="glscan" aria-hidden="true"></div><div id="glsweep" aria-hidden="true"></div><div id="glband" aria-hidden="true"></div>
 <div class="toasts" id="toasts" aria-live="polite"></div>
 
 <script>
@@ -1057,8 +1091,8 @@ function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH
 
 // ================= navigation =================
 function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
-function sceneFor(sc){ return {home:"storm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"gate",run:"vortex",castle:"storm",skills:"vortex",session:"vortex",boss:"calm",arc:"storm",quiz:"calm",journal:"moon",breathe:"vortex"}[sc]||"calm"; }
-function setScene(){ if(document.getElementById("splash")){ fx.mode="gate"; return; } fx.mode=S?sceneFor(screen):"gate"; fx.hue=["army","castle","skills","arc","breathe"].includes(screen)?"violet":"blue"; }
+function sceneFor(sc){ return {home:"calm",status:"vortex",profile:"moon",army:"storm",allocate:"vortex",gates:"calm",run:"vortex",castle:"calm",skills:"vortex",session:"calm",boss:"calm",arc:"calm",quiz:"calm",journal:"moon",breathe:"calm"}[sc]||"calm"; }
+function setScene(){ if(document.getElementById("splash")){ fx.mode="calm"; return; } fx.mode=S?sceneFor(screen):"calm"; fx.hue=["army","castle","skills","arc","breathe"].includes(screen)?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
 function unread(){ return S.notes.filter(n=>n.t>S.notesSeen).length; }
 function topbar(title,sub,backable){
@@ -1421,6 +1455,7 @@ function vSettingsFull(){
     ${Q().map(q=>`<div class="lrow"><span style="color:${q.c}">${ico(q.icon)}</span><span class="grow">${esc(q.name)}</span><input type="time" id="slot_${q.id}" value="${esc(slotOf(q.id))}" style="background:rgb(var(--bg-rgb) / .8);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink)"></div>`).join("")}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px"><div><div class="label">Extra reminders when behind</div><div class="tiny muted">1 PM, 5 PM, your evening time and 10:30 PM, only if you haven't cleared yet.</div></div><button class="toggle ${S.settings.nag!==false?"on":""}" data-act="nagtoggle" aria-label="Extra reminders"></button></div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Sound effects</div><div class="tiny muted">System chimes, combo and boss sounds.</div></div><button class="toggle ${S.settings.sound!==false?"on":""}" data-act="soundtoggle" aria-label="Sound effects"></button></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Glitch effects</div><div class="tiny muted">System glitches on screen changes, taps and titles, plus faint scanlines.</div></div><button class="toggle ${S.settings.glitch!==false?"on":""}" data-act="glitchtoggle" aria-label="Glitch effects"></button></div>
   </section>
   <section class="card stack" data-sec="pause"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Pause mode</div><div class="tiny muted">Travelling or unwell? No penalties and your streak waits for you.</div></div><button class="toggle ${S.pause?"on":""}" data-act="${S.pause?"unpause":"pause"}" aria-label="Pause mode"></button></div>
     <div class="tiny muted">Streak shields: <b style="color:var(--gold)">${S.freezes||0}/${maxShields()}</b>. You earn one every 7-day streak; each absorbs one missed day automatically.</div></section>
@@ -2047,14 +2082,14 @@ function ovSheet(html){ document.getElementById("ov").innerHTML=`<div class="ove
 // ================= render =================
 function render(){
   const app=document.getElementById("app"), nav=document.getElementById("nav");
-  if(!S){ nav.hidden=true; fx.mode="gate"; app.innerHTML=vAwaken(); return; }
+  if(!S){ nav.hidden=true; fx.mode="calm"; app.innerHTML=vAwaken(); glAfter("awaken"); return; }
   nav.hidden=screen==="run";
   const tabOf={home:"home",quests:"quests",session:"quests",boss:"home",gates:"gates",run:"gates",castle:"gates",inventory:"inventory"};
   nav.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",tabOf[screen]===b.dataset.nav||(!tabOf[screen]&&b.dataset.nav==="menu"));
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
   const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss,arc:vArc,quiz:vQuiz,journal:vJournal,breathe:vBreathe}[screen]||vHome;
-  app.innerHTML=V();
+  app.innerHTML=V(); glAfter(screen);
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
   if(S.pendingLevelUp && !document.getElementById("ov").innerHTML) setTimeout(ovLevelUp,350);
@@ -2109,6 +2144,7 @@ document.addEventListener("click",e=>{
     case "startmin": ui.startQ=null; closeOv(); completeQuest(id,null,{min:true}); break;
     case "startclose": ui.startQ=null; closeOv(); render(); break;
     case "nagtoggle": S.settings.nag=S.settings.nag===false; commit(); break;
+    case "glitchtoggle": S.settings.glitch=S.settings.glitch===false; glApply(); commit(); if(S.settings.glitch!==false) glBlip(); break;
     case "soundtoggle": S.settings.sound=S.settings.sound===false; commit(); if(S.settings.sound) sfx("done"); break;
     case "urgentdone": completeUrgent(); break;
     case "startrun": startRun(id); break;
@@ -2192,7 +2228,29 @@ document.addEventListener("submit",e=>{ e.preventDefault();
 
 // ================= ambient scenes =================
 // Modes: storm (home), gate (splash/onboarding), vortex (status), moon (profile), burst (level up/loot), calm (everything else).
-const fx={mode:"gate",hue:"blue"};
+// ================= glitch system =================
+const GL={last:null,timer:null,rm:window.matchMedia?matchMedia("(prefers-reduced-motion: reduce)"):{matches:false}};
+const glOn=()=>!(S&&S.settings&&S.settings.glitch===false)&&!GL.rm.matches;
+function glApply(){ document.body.classList.toggle("noglitch",!glOn()); }
+function glDecorate(root){ (root||document).querySelectorAll(".screen-title,.wordmark,.bname,#ov h1,#ov h2,#ov h3,.sn").forEach(el=>{ if(el.children.length) return; const t=el.textContent; if(el.dataset.text!==t){ el.dataset.text=t; el.classList.add("gtext"); } }); }
+function glBurst(el,ms){ if(!el||!glOn()) return; el.classList.remove("gl-burst"); void el.offsetWidth; el.classList.add("gl-burst"); setTimeout(()=>el.classList.remove("gl-burst"),ms||620); }
+function glVeil(){ const v=document.getElementById("glveil"); if(!v) return; v.classList.remove("run"); void v.offsetWidth; v.classList.add("run"); }
+function glSweep(){ const w=document.getElementById("glsweep"); if(!w) return; w.classList.remove("run"); void w.offsetWidth; w.classList.add("run"); }
+function glBlip(){ if(!glOn()||document.hidden) return; const b=document.getElementById("glband"); if(!b) return; b.style.top=(8+Math.random()*80).toFixed(1)+"%"; b.classList.remove("run"); void b.offsetWidth; b.classList.add("run");
+  const ts=[...document.querySelectorAll("#app .gtext")]; if(ts.length) glBurst(ts[Math.floor(Math.random()*ts.length)]); }
+function glAfter(sc){
+  const app=document.getElementById("app"); glDecorate(app); glApply();
+  if(sc===GL.last||!glOn()){ GL.last=sc; return; } GL.last=sc;
+  app.querySelectorAll(".card").forEach((c,i)=>{ if(i<14) c.style.setProperty("--gi",i); });
+  app.classList.remove("gl-enter"); void app.offsetWidth; app.classList.add("gl-enter"); glVeil(); glSweep();
+  app.querySelectorAll(".gtext").forEach(el=>glBurst(el,700));
+  clearTimeout(GL.timer); GL.timer=setTimeout(()=>app.classList.remove("gl-enter"),1400);
+}
+document.addEventListener("pointerdown",e=>{ if(!glOn()) return; const b=e.target.closest("button,[data-act],[data-nav]"); if(!b||b.disabled||b.closest(".toggle")) return;
+  b.classList.remove("gl-tap"); void b.offsetWidth; b.classList.add("gl-tap"); setTimeout(()=>b.classList.remove("gl-tap"),300); },{capture:true,passive:true});
+(function idle(){ setTimeout(()=>{ if(glOn()&&!document.hidden){ if(Math.random()<.45) glBlip(); else { const ts=[...document.querySelectorAll(".gtext")]; if(ts.length) glBurst(ts[Math.floor(Math.random()*ts.length)]); } } idle(); },4500+Math.random()*5000); })();
+new MutationObserver(()=>{ const ov=document.getElementById("ov"); if(ov.innerHTML){ glDecorate(ov); ov.querySelectorAll(".gtext").forEach(el=>glBurst(el,800)); if(glOn()) glSweep(); } }).observe(document.getElementById("ov"),{childList:true});
+const fx={mode:"calm",hue:"blue"};
 (function(){
   const cv=document.getElementById("fx"), ctx=cv.getContext("2d");
   const reduce=window.matchMedia&&matchMedia("(prefers-reduced-motion: reduce)").matches;
