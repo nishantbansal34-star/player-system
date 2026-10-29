@@ -1,0 +1,19 @@
+name: Keep friends server awake
+# The free Supabase project pauses after 7 days without activity.
+# This pings it every 3 days so the friends leaderboard keeps working.
+on:
+  schedule:
+    - cron: "23 4 */3 * *"
+  workflow_dispatch:
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase
+        run: |
+          code=$(curl -s -o out.txt -w "%{http_code}" -X POST \
+            "https://csbxmdsquacohndqxslh.supabase.co/rest/v1/rpc/ps_ping" \
+            -H "apikey: sb_publishable_iDh6DvN76tEwcq-0ucry3w_coNKAtOQ" \
+            -H "Content-Type: application/json" -d '{}')
+          echo "HTTP $code"; cat out.txt; echo
+          test "$code" = "200"
