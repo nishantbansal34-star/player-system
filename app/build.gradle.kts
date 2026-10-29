@@ -7,12 +7,12 @@ val buildNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
 
 android {
     namespace = "com.nishant.playersystem"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.nishant.playersystem"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
     }
@@ -25,13 +25,26 @@ android {
             keyAlias = "player"
             keyPassword = "playersystem"
         }
+        // Google Play upload key: only present in CI (GitHub secrets), never committed.
+        val upFile = System.getenv("UPLOAD_KEYSTORE_FILE")
+        if (upFile != null && file(upFile).exists()) {
+            create("upload") {
+                storeFile = file(upFile)
+                storeType = "pkcs12"
+                storePassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("UPLOAD_KEY_ALIAS") ?: "upload"
+                keyPassword = System.getenv("UPLOAD_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         getByName("debug") { signingConfig = signingConfigs.getByName("shared") }
         getByName("release") {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("shared")
+            // PLAY_BUNDLE=1 signs with the private upload key for Google Play; normal builds keep the shared sideload key.
+            signingConfig = if (System.getenv("PLAY_BUNDLE") == "1" && signingConfigs.findByName("upload") != null)
+                signingConfigs.getByName("upload") else signingConfigs.getByName("shared")
         }
     }
 

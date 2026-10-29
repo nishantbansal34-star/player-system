@@ -61,6 +61,11 @@ class MainActivity : Activity() {
 
         setContentView(root)
         web.loadUrl("file:///android_asset/index.html")
+        handlePrivacyIntent(intent)
+        // Android 13+ back gesture (required for predictive back on Android 16)
+        if (Build.VERSION.SDK_INT >= 33) {
+            onBackInvokedDispatcher.registerOnBackInvokedCallback(android.window.OnBackInvokedDispatcher.PRIORITY_DEFAULT) { goBack() }
+        }
         Reminders.schedule(this)
         val remindOn = Logic.load(this)?.optJSONObject("settings")?.optBoolean("remindOn", true) ?: true
         if (remindOn) askNotificationPermission()
@@ -151,10 +156,26 @@ class MainActivity : Activity() {
         web.post { web.evaluateJavascript(js, null) }
     }
 
-    @Deprecated("Deprecated in Java")
-    override fun onBackPressed() {
+    private fun goBack() {
         web.evaluateJavascript("window.__back ? window.__back() : false") { result ->
             if (result != "true") finish()
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onBackPressed() { goBack() }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handlePrivacyIntent(intent)
+    }
+
+    /** Health Connect opens the app with these actions to show why health data is read: show the privacy screen. */
+    private fun handlePrivacyIntent(i: Intent?) {
+        val a = i?.action ?: return
+        if (a == "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" || a == "android.intent.action.VIEW_PERMISSION_USAGE") {
+            web.postDelayed({ web.evaluateJavascript("window.__showPrivacy && window.__showPrivacy()", null) }, 1200)
         }
     }
 

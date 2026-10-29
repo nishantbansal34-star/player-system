@@ -70,6 +70,13 @@ class Bridge(private val activity: MainActivity) {
     @JavascriptInterface
     fun readSnapshot(name: String): String = Store.readSnapshot(activity, name) ?: "null"
 
+    /** Which store installed the app ("com.android.vending" for Google Play). Play builds hide the GitHub self-update. */
+    @JavascriptInterface
+    fun installer(): String = try {
+        if (Build.VERSION.SDK_INT >= 30) activity.packageManager.getInstallSourceInfo(activity.packageName).installingPackageName ?: ""
+        else @Suppress("DEPRECATION") (activity.packageManager.getInstallerPackageName(activity.packageName) ?: "")
+    } catch (e: Exception) { "" }
+
     @JavascriptInterface
     fun healthStatus(): String = Tracking.healthStatus(activity)
 

@@ -29,18 +29,42 @@ jobs:
       - name: Rename APK
         run: cp app/build/outputs/apk/release/app-release.apk PlayerSystem.apk
 
+      # Google Play bundle, signed with the private upload key from the repository secrets
+      # UPLOAD_KEYSTORE_B64 (the .p12 file, base64) and UPLOAD_KEYSTORE_PASSWORD. Nothing secret is in the repo.
+      - name: Build Play bundle (AAB)
+        env:
+          UPLOAD_KEYSTORE_B64: ${{ secrets.UPLOAD_KEYSTORE_B64 }}
+          UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.UPLOAD_KEYSTORE_PASSWORD }}
+        run: |
+          if [ -z "$UPLOAD_KEYSTORE_B64" ] || [ -z "$UPLOAD_KEYSTORE_PASSWORD" ]; then
+            echo "::warning::Upload key secrets not set, skipping the Google Play bundle."
+            exit 0
+          fi
+          echo "$UPLOAD_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/upload.p12"
+          PLAY_BUNDLE=1 UPLOAD_KEYSTORE_FILE="$RUNNER_TEMP/upload.p12" UPLOAD_KEY_ALIAS=upload \
+            gradle :app:bundleRelease --no-daemon --stacktrace
+          rm -f "$RUNNER_TEMP/upload.p12"
+          cp app/build/outputs/bundle/release/app-release.aab PlayerSystem.aab
+
       - uses: actions/upload-artifact@v4
         with:
           name: PlayerSystem-apk
-          path: PlayerSystem.apk
+          path: |
+            PlayerSystem.apk
+            PlayerSystem.aab
+          if-no-files-found: warn
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Player System build ${{ github.run_number }}
-          files: PlayerSystem.apk
+          files: |
+            PlayerSystem.apk
+            PlayerSystem.aab
+          fail_on_unmatched_files: false
           make_latest: true
           body: |
             Download PlayerSystem.apk below and open it on your phone to install or update.
             Your progress is kept when you install over an older build.
+            PlayerSystem.aab (when present) is the signed bundle to upload to Google Play Console.

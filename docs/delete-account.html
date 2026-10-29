@@ -1,0 +1,23 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Player System – Delete Account</title><link rel="stylesheet" href="style.css"></head><body><main>
+<h1>Delete your account</h1><p class="muted">Player System · by Nishant (NRRL)</p>
+<p>Deleting your Player System online account permanently removes your hunter profile, name, friend links, cheers and duel messages, ranking points history and cloud backup from the app's server. Data stored only on your phone is removed when you reset the app or uninstall it.</p>
+<h2>Option 1: in the app</h2>
+<p>Open <b>More → Friends</b>, scroll down, tap <b>Leave the network</b> and tap again to confirm.</p>
+<h2>Option 2: on this page</h2>
+<p>Paste your backup key (shown in the app under Settings → Cloud backup → Show backup key; it looks like <code>ABC123-</code> followed by a long code).</p>
+<div class="card"><label for="k">Backup key</label><input id="k" autocomplete="off" spellcheck="false" placeholder="ABC123-…">
+<button id="go">Delete my account permanently</button><p id="msg" class="muted"></p></div>
+<p class="muted">If you no longer have the app or your key, contact the developer using the email on the Google Play listing with your player name and hunter code, and the account will be deleted within 30 days.</p>
+<script>
+const b=document.getElementById('go'),m=document.getElementById('msg');let armed=false;
+b.onclick=async()=>{ const raw=document.getElementById('k').value.trim().replace(/\s+/g,''); const i=raw.indexOf('-');
+  if(i<4){ m.textContent='That does not look like a backup key.'; return; }
+  if(!armed){ armed=true; b.textContent='Tap again to confirm'; m.textContent='This cannot be undone.'; return; }
+  b.disabled=true; m.textContent='Deleting…';
+  try{ const r=await fetch('https://csbxmdsquacohndqxslh.supabase.co/rest/v1/rpc/ps_delete_by_key',{method:'POST',headers:{'apikey':'sb_publishable_iDh6DvN76tEwcq-0ucry3w_coNKAtOQ','Content-Type':'application/json'},body:JSON.stringify({p_code:raw.slice(0,i),p_secret:raw.slice(i+1)})});
+    m.textContent=r.ok?'Your account and all its online data were deleted.':'That key was not accepted. Check it and try again.'; }
+  catch(e){ m.textContent='Could not reach the server. Try again later.'; }
+  b.disabled=false; armed=false; b.textContent='Delete my account permanently'; };
+</script>
+</main></body></html>

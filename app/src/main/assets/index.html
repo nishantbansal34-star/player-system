@@ -1086,7 +1086,33 @@ async function boot(){
 }
 window.__imported=function(json){ try{ const d=JSON.parse(json); if(!d||!d.level) throw 0; S=migrate(d); processDays(); toast("Backup","Progress restored from file.","","check"); commit(); }catch(e){ toast("Backup","That file isn't a Player System backup.","red","x"); } };
 window.__exported=function(ok){ toast("Backup",ok?"Backup file saved.":"Backup not saved.",ok?"":"red",ok?"check":"x"); };
+const PRIVACY_URL="https://nishantbansal34-star.github.io/player-system/privacy.html";
+const DELETE_URL="https://nishantbansal34-star.github.io/player-system/delete-account.html";
+const PLAY_URL="https://play.google.com/store/apps/details?id=com.nishant.playersystem";
+const isPlay=()=>{ try{ return hasA("installer")&&Android.installer()==="com.android.vending"; }catch(e){ return false; } };
+window.__showPrivacy=function(){ if(!S) return; go("privacy"); };
+function vPrivacy(){
+  return `${topbar("Privacy","What the app uses and why",true)}<div class="stack">
+  <section class="card"><div class="label">On this phone</div><p class="small" style="margin:6px 0 0">Your quests, history, journal, body check-ins and settings are stored only on this phone. Nothing leaves it unless you turn on Friends or Cloud backup.</p></section>
+  <section class="card"><div class="label">Health Connect (optional)</div><p class="small" style="margin:6px 0 0">If you allow it, the app reads today's <b>steps</b>, <b>exercise sessions</b> and last night's <b>sleep</b> from Health Connect. It uses them only to complete the Steps and Training quests automatically, give a well-rested bonus, and verify those quests for the friends ranking. Health data is never sold, never used for ads, and never stored online except a yes/no "verified" record with the step or exercise count for ranked quests.</p></section>
+  <section class="card"><div class="label">Screen-time check (optional)</div><p class="small" style="margin:6px 0 0">If you grant Usage access, the app reads how many minutes you used Instagram, YouTube, Facebook, X, Snapchat and Reddit today, to check the Discipline quest. Only the total "0 minutes after the cutoff" result is sent when you rank that quest.</p></section>
+  <section class="card"><div class="label">Friends and ranking (optional)</div><p class="small" style="margin:6px 0 0">Going online creates a hunter profile with your chosen name, level, title, streak, ranking points and which quests you verified each day. Friends you add can see these. No email, phone number or contacts are collected.</p></section>
+  <section class="card"><div class="label">Cloud backup (optional)</div><p class="small" style="margin:6px 0 0">When on, a copy of your app data (including journal notes) is stored on the app's server so you can restore it with your backup key.</p></section>
+  <section class="card"><div class="label">Delete your data</div><p class="small" style="margin:6px 0 10px">In Friends, tap "Leave the network" to delete your online profile, ranking history and cloud backup. Reset the System in Settings to erase everything on this phone.</p>
+    <div class="form-row"><a class="btn ghost sm" href="${PRIVACY_URL}">Full privacy policy</a><a class="btn ghost sm" href="${DELETE_URL}">Delete account page</a></div></section>
+  </div>`;
+}
+function disclosureSheet(kind){
+  const H=kind==="health";
+  ovSheet(`<div class="label" style="color:var(--violet-hi)">${H?"Health Connect":"Usage access"}</div>
+    <h3 style="font-family:var(--f-display);margin:6px 0 8px">${H?"Read your steps, exercise and sleep?":"Check your social-media time?"}</h3>
+    <p class="small" style="margin:0 0 8px">${H?"Player System will read today's steps, exercise sessions and last night's sleep from Health Connect. It uses them to complete the Steps and Training quests for you, give a well-rested bonus, and verify those quests for the friends ranking.":"Player System will read how long you used Instagram, YouTube, Facebook, X, Snapchat and Reddit today. It uses this only for the Discipline quest: full completion locks if you used them after the cutoff."}</p>
+    <p class="tiny muted" style="margin:0 0 12px">${H?"Health data stays on this phone, except the step or exercise count of a quest you verify for ranking.":"Only a \"0 minutes after cutoff\" result is sent when you rank the quest. App names and times stay on this phone."} You can turn this off any time in Settings.</p>
+    <div class="stack" style="gap:8px"><button class="btn wide" data-act="${H?"healthagree":"usageagree"}">Continue</button><button class="btn ghost wide" data-act="lu-close">Not now</button>
+    <a class="tiny" style="text-align:center;color:var(--blue-hi)" href="${PRIVACY_URL}">Privacy policy</a></div>`);
+}
 async function checkUpdate(manual){
+  if(isPlay()){ if(manual) toast("Updates","This copy updates through Google Play.","","refresh"); return; }
   if(!hasA("versionCode")) return;
   try{ const r=await fetch("https://api.github.com/repos/"+REPO+"/releases/latest",{cache:"no-store"}); if(!r.ok) throw 0; const j=await r.json(); const n=parseInt(String(j.tag_name||"").replace(/\D/g,""),10);
     const a=(j.assets||[]).find(x=>/\.apk$/.test(x.name));
@@ -1208,7 +1234,7 @@ function vHome(){
   </div>`;
 }
 function updateCard(){
-  if(!ui.update) return "";
+  if(!ui.update||isPlay()) return "";
   return `<section class="card hot" style="display:flex;gap:12px;align-items:center">${ico("refresh","","color:#8fc1ff;width:26px;height:26px")}<div style="flex:1;min-width:0"><div class="label" style="color:var(--blue-hi)">Update available</div><div class="small">Build ${ui.update.n} is ready. Install it over this one; your progress stays.</div></div><a class="btn sm" href="${ui.update.url}">Get it</a></section>`;
 }
 function weeklyCard(){
@@ -1501,7 +1527,8 @@ function vSettingsFull(){
     <div class="form-row"><button class="btn ghost sm" data-act="export">Copy backup code</button><button class="btn ghost sm" data-act="import-open">Restore from code</button></div>
     ${ui.importOpen?`<textarea id="importBox" placeholder="Paste a backup code"></textarea><button class="btn sm" data-act="import">Restore</button>`:""}
   </section>
-  ${A?`<section class="card" data-sec="about" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">App version</div><div class="small num">Build ${esc(String(Android.versionCode()))}${ui.update?` · build ${ui.update.n} available`:""}</div></div><button class="btn ghost sm" data-act="checkupdate">Check for update</button></section>`:""}
+  ${A?`<section class="card" data-sec="about" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">App version</div><div class="small num">Build ${esc(String(Android.versionCode()))}${isPlay()?" · updates via Google Play":ui.update?` · build ${ui.update.n} available`:""}</div></div>${isPlay()?"":`<button class="btn ghost sm" data-act="checkupdate">Check for update</button>`}</section>`:""}
+  <section class="card" data-sec="about" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Privacy</div><div class="small">What the app reads, what goes online, how to delete it</div></div><button class="btn ghost sm" data-act="go" data-to="privacy">Open</button></section>
   <section class="card red" data-sec="reset"><div class="label" style="color:var(--red-hi)">Reset</div><p class="small" style="margin:6px 0 10px;color:#ffc9d1">Erase every level, stat and record, and start again from Level 1.</p>
     <button class="btn red sm" data-act="reset">${ui.pendingReset?"Tap again to erase everything":"Reset the System"}</button></section>
   `;
@@ -2332,7 +2359,7 @@ function render(){
   nav.querySelectorAll("button").forEach(b=>{ b.classList.toggle("on",tabOf[screen]===b.dataset.nav||(!tabOf[screen]&&b.dataset.nav==="menu"));
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
-  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss,arc:vArc,quiz:vQuiz,journal:vJournal,breathe:vBreathe}[screen]||vHome;
+  const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss,arc:vArc,quiz:vQuiz,journal:vJournal,breathe:vBreathe,privacy:vPrivacy}[screen]||vHome;
   const bgs=SCREEN_BG[screen]; app.innerHTML=(bgs?`<div class="session-bg scr soft" aria-hidden="true">${artSlot("art/"+bgs[0]+".webp",bgs[2]?`<img src="art/${bgs[2]}.webp" alt="">`:"","full")}</div>`:"")+V(); if(bgs) app.firstElementChild.style.setProperty("--bgpos",bgs[1]); glAfter(screen);
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
@@ -2355,7 +2382,7 @@ document.addEventListener("click",e=>{
     case "boardtab": ui.boardTab=b.dataset.t; render(); break;
     case "friend": ui.friendSel=id||null; ui.pendingUnfriend=null; render(); break;
     case "netcopy": { const c=S.net&&S.net.code; if(!c) break; try{ navigator.clipboard.writeText(c).then(()=>toast("Copied","Hunter code "+c,"","copy"),()=>toast("Your code",c,"","copy")); }catch(e){ toast("Your code",c,"","copy"); } break; }
-    case "netshare": { const c=S.net&&S.net.code; if(!c) break; const txt="Join me in the Player System, a Solo Leveling-style habit app. Install it: "+NET.apk+" — then open More → Friends and add my hunter code: "+c; if(hasA("share")) Android.share(txt); else { try{ navigator.clipboard.writeText(txt); toast("Invite copied","Paste it into WhatsApp","","share"); }catch(e){} } break; }
+    case "netshare": { const c=S.net&&S.net.code; if(!c) break; const txt="Join me in Player System, a level-up habit RPG. Install it: "+(isPlay()?PLAY_URL:NET.apk)+" — then open More → Friends and add my hunter code: "+c; if(hasA("share")) Android.share(txt); else { try{ navigator.clipboard.writeText(txt); toast("Invite copied","Paste it into WhatsApp","","share"); }catch(e){} } break; }
     case "unfriend": if(ui.pendingUnfriend!==id){ ui.pendingUnfriend=id; render(); break; } (async()=>{ try{ await rpc("ps_remove_friend",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); ui.friendSel=null; ui.pendingUnfriend=null; await netBoard(); toast("Friends","Friend removed.","","users"); }catch(e){ ui.netErr=netErr(e); render(); } })(); break;
     case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; if(S.cloud) S.cloud.on=false; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
     case "useskill": useSkill(id); break;
@@ -2370,8 +2397,10 @@ document.addEventListener("click",e=>{
     case "jsave": { if(ui.mood==null) break; const h=rec(today()); if(h.journal) break; h.journal={mood:ui.mood,text:(document.getElementById("jtext")||{}).value||"",t:Date.now()}; ui.mood=null; const x=gain(15); toast("Daily log saved","+"+x+" XP · The System remembers.","","book"); commit(); break; }
     case "breathgo": { const n=Number(b.dataset.n); ui.breath={mins:n,start:Date.now(),end:Date.now()+n*60000}; sfx("start"); render(); break; }
     case "breathstop": ui.breath=null; render(); break;
-    case "healthtoggle": S.settings.health=!S.settings.health; if(S.settings.health&&hasA("healthRequest")) Android.healthRequest(); commit(); setTimeout(healthPull,1500); break;
-    case "usagetoggle": S.settings.usage=!S.settings.usage; if(S.settings.usage&&hasA("usageStatus")&&Android.usageStatus()!=="ok"&&hasA("openUsageSettings")) Android.openUsageSettings(); commit(); break;
+    case "healthtoggle": if(S.settings.health){ S.settings.health=false; commit(); } else disclosureSheet("health"); break;
+    case "healthagree": closeOv(); S.settings.health=true; if(hasA("healthRequest")) Android.healthRequest(); commit(); setTimeout(healthPull,1500); break;
+    case "usagetoggle": if(S.settings.usage){ S.settings.usage=false; commit(); } else disclosureSheet("usage"); break;
+    case "usageagree": closeOv(); S.settings.usage=true; if(hasA("usageStatus")&&Android.usageStatus()!=="ok"&&hasA("openUsageSettings")) Android.openUsageSettings(); commit(); break;
     case "cheer": case "nudge": (async()=>{ try{ await rpc("ps_nudge",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id,p_kind:a}); toast(a==="cheer"?"Cheer sent":"Nudge sent",a==="cheer"?"They'll see it next time they open the app.":"They'll get it when they open the app.","",a==="cheer"?"star":"bolt"); }catch(e){ toast("Friends",netErr(e),"red","x"); } })(); break;
     case "openq": openQuest(id,b.dataset.back&&canBackfill()?addDay(today(),-1):null); break;
     case "sessstart": sessStart(); break;
