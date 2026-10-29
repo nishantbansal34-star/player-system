@@ -1076,7 +1076,7 @@ async function checkUpdate(manual){
     else if(manual) toast("Update","You're on the latest build.","","check");
   }catch(e){ if(manual) toast("Update","Couldn't check. Are you online?","red","x"); }
 }
-window.__appLeft=function(interactive){ if(S&&S.run&&interactive){ S.run.left=Date.now(); dirty=true; flush(); } };
+window.__appLeft=function(interactive){ try{ if(S&&S.cloud&&S.cloud.on&&Date.now()-(S.cloud.at||0)>20*60000) cloudSave(false); }catch(e){} if(S&&S.run&&interactive){ S.run.left=Date.now(); dirty=true; flush(); } };
 function checkRunReturn(){ if(!S||!S.run) return; if(S.run.left){ const away=Date.now()-S.run.left; if(away>45000){ endRun(false,"You left the dungeon for too long. The key is lost."); return; } S.run.left=null; commit(); } if(Date.now()>=S.run.endsAt) endRun(true); }
 window.__onResume=function(){ if(!window.Android) return; ui.hstat=null; setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } checkRunReturn(); if(S&&S.run){ screen="run"; render(); } } }catch(e){} };
 window.__back=function(){ if(document.getElementById("ov").innerHTML){ closeOv(); return true; } if(screen==="settings"&&ui.setPage){ ui.setPage=null; render(); return true; } if(hist.length){ screen=hist.pop(); render(); return true; } if(screen!=="home"){ screen="home"; render(); return true; } return false; };
@@ -1389,8 +1389,8 @@ function vArmy(){
   const hn=id=>id==="daily"?"Daily quest":((qById(id)||{}).name||"Retired quest");
   return `${topbar("Shadow army","",true)}
   <div class="stack" style="margin-top:12px">
-  ${S.shadows.length?`<div class="army">${S.shadows.map(sh=>{ const st=habitStreak(sh.habit), g=(GRADES.find(x=>st>=x[0])||[0,"Dormant"])[1];
-    return `<section class="card violet soldier${st>0?"":" dormant"}">${artSlot("art/shadow.webp","","ico sh-img")}<div class="label" style="color:var(--violet-hi)">${g}</div><div class="sn">${esc(sh.name)}</div><div class="tiny muted">${hn(sh.habit)} · ${st}d</div></section>`;}).join("")}</div>`:`<section class="card violet"><p style="margin:0">No soldiers yet. Keep a quest going for 21 days, then extract it.</p></section>`}
+  ${S.shadows.length?`<div class="army">${S.shadows.map((sh,si)=>{ const st=habitStreak(sh.habit), g=(GRADES.find(x=>st>=x[0])||[0,"Dormant"])[1];
+    return `<section class="card violet soldier${st>0?"":" dormant"}">${artSlot("art/shadow-"+(si%6+1)+".webp",`<img src="art/shadow.webp" alt="">`,"ico sh-img")}<div class="label" style="color:var(--violet-hi)">${g}</div><div class="sn">${esc(sh.name)}</div><div class="tiny muted">${hn(sh.habit)} · ${st}d</div></section>`;}).join("")}</div>`:`<section class="card violet"><p style="margin:0">No soldiers yet. Keep a quest going for 21 days, then extract it.</p></section>`}
   <section class="card"><div class="label">Extraction</div>${habits.filter(id=>!S.shadows.some(s=>s.habit===id)).map(id=>{ const st=habitStreak(id);
     return `<div class="lrow"><div class="grow"><div class="small">${hn(id)}</div><div class="bar violet" style="margin-top:6px"><i style="width:${Math.min(100,Math.round(st/21*100))}%"></i></div><div class="tiny muted num">${st}/21 days</div></div><button class="btn violet sm" data-act="arise" data-id="${id}" ${st>=21&&S.shadows.length<SHADOW_NAMES.length?"":"disabled"}>Arise</button></div>`;}).join("")}</section>
   </div>`;
@@ -1418,6 +1418,7 @@ function vSettings(){
     ["assess","target","Player assessment",S.quiz?"Retake to refit your targets":"Not taken yet"],
     ["times","bell","Quest times",Q().filter(q=>slotOf(q.id)).length+" planned"],
     ["pause","moon","Pause & shields",(S.pause?"Paused":"Active")+" · "+(S.freezes||0)+"/2 shields"],
+    ...(window.Android?[["cloud","shield","Cloud backup",S.cloud&&S.cloud.on?(S.cloud.at?"Saved "+cloudAgo(S.cloud.at):"On"):"Off"]]:[]),
     ["data","bag","Data & backup",A?"Backup file, snapshots":"Backup code"],
     ...(A?[["about","refresh","About & updates","Build "+Android.versionCode()]]:[]),
     ["reset","x","Reset","Start again from Level 1"]];
@@ -1429,7 +1430,7 @@ function vSettingsFull(){
   const st=S.settings, A=!!window.Android;
   const qs=S.quests, on=qs.filter(q=>q.enabled!==false).length;
   const ed=ui.editQ?qs.find(q=>q.id===ui.editQ):null;
-  const TITLES={tracking:"Phone tracking",times:"Quest times",quests:"Your quests",profile:"Profile",game:"Gameplay",remind:"Reminders",pause:"Pause & shields",data:"Data & backup",about:"About",reset:"Reset"};
+  const TITLES={cloud:"Cloud backup",tracking:"Phone tracking",times:"Quest times",quests:"Your quests",profile:"Profile",game:"Gameplay",remind:"Reminders",pause:"Pause & shields",data:"Data & backup",about:"About",reset:"Reset"};
   const html=`
   <section class="card" data-sec="quests"><div class="label">Your quests</div>
     <p class="tiny muted" style="margin:4px 0 4px">${on} active · clear ${clearAt()} each day. Turn quests off or set your own targets as life changes.</p>
@@ -1469,6 +1470,7 @@ function vSettingsFull(){
   </section>
   <section class="card stack" data-sec="pause"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Pause mode</div><div class="tiny muted">Travelling or unwell? No penalties and your streak waits for you.</div></div><button class="toggle ${S.pause?"on":""}" data-act="${S.pause?"unpause":"pause"}" aria-label="Pause mode"></button></div>
     <div class="tiny muted">Streak shields: <b style="color:var(--gold)">${S.freezes||0}/${maxShields()}</b>. You earn one every 7-day streak; each absorbs one missed day automatically.</div></section>
+  ${A?`<section class="card stack" data-sec="cloud">${cloudSection()}</section>`:""}
   <section class="card stack" data-sec="data"><div class="label">Backup</div>
     ${A?`<p class="small muted" style="margin:0">Save a backup file to your phone or Google Drive, and restore it on a new phone. The app also keeps 14 days of automatic snapshots.</p>
       <div class="form-row"><button class="btn sm" data-act="exportfile">Save backup file</button><button class="btn ghost sm" data-act="importfile">Restore from file</button><button class="btn ghost sm" data-act="snaps">Snapshots</button></div>
@@ -1488,12 +1490,60 @@ function vSettingsFull(){
 // ================= friends network (Android app only) =================
 const NET={url:"https://csbxmdsquacohndqxslh.supabase.co/rest/v1/rpc/",key:"sb_publishable_iDh6DvN76tEwcq-0ucry3w_coNKAtOQ",apk:"https://github.com/"+REPO+"/releases/latest/download/PlayerSystem.apk"};
 const netOK=()=>!!window.Android;
+// ================= cloud backup =================
+function cloudAgo(t){ const m=Math.round((Date.now()-t)/60000); return m<1?"just now":m<60?m+" min ago":m<1440?Math.round(m/60)+" h ago":Math.round(m/1440)+" days ago"; }
+const cloudKey=()=>S.net?S.net.code+"-"+S.net.secret:"";
+function cloudPayload(){ const c=JSON.parse(JSON.stringify(S)); delete c.net; delete c.session; return c; }
+let cloudBusy=false;
+async function cloudSave(manual){
+  if(!netOK()||!S||!S.net||!S.cloud||!S.cloud.on||cloudBusy) return; cloudBusy=true; ui.cloudErr=null; if(manual) render();
+  try{ await rpc("ps_backup_save",{p_id:S.net.id,p_secret:S.net.secret,p_data:cloudPayload()}); S.cloud.at=Date.now(); S.cloud.dirty=false; dirty=true; flush(); if(manual) toast("Cloud backup","Your progress is saved online.","","check"); }
+  catch(e){ ui.cloudErr=netErr(e); if(manual) toast("Cloud backup",ui.cloudErr,"red","x"); }
+  cloudBusy=false; if(manual||screen==="settings") render();
+}
+function cloudMaybe(){ if(S&&S.cloud&&S.cloud.on&&S.net&&Date.now()-(S.cloud.at||0)>3*3600e3) cloudSave(false); }
+async function cloudEnable(){
+  if(!netOK()) return; ui.cloudErr=null; cloudBusy=true; render();
+  try{ if(!S.net){ const r=await rpc("ps_register",{p_name:S.name}); S.net={id:r.id,secret:r.secret,code:r.code}; }
+    S.cloud={on:true,at:0}; cloudBusy=false; await cloudSave(true); ui.showKey=true; }
+  catch(e){ ui.cloudErr=netErr(e); cloudBusy=false; }
+  commit();
+}
+async function cloudRestore(){
+  const raw=((document.getElementById("cloudKeyIn")||{}).value||"").trim().replace(/\s+/g,""); const i=raw.indexOf("-");
+  if(i<4){ ui.cloudErr="Paste the full backup key. It looks like ABC123-followed by a long code."; render(); return; }
+  const code=raw.slice(0,i).toUpperCase(), secret=raw.slice(i+1); ui.cloudErr=null; cloudBusy=true; render();
+  try{ const r=await rpc("ps_backup_restore",{p_code:code,p_secret:secret}); const d=r.data; if(!d||!d.level) throw new Error("no_backup");
+    S=migrate(d); S.net={id:r.id,secret,code}; S.cloud={on:true,at:Date.now()}; processDays(); ui.restoreOpen=false; screen="home"; hist=[];
+    cloudBusy=false; commit(); toast("Cloud backup","Welcome back, "+S.name+" · Level "+S.level+" restored.","gold","crown"); }
+  catch(e){ ui.cloudErr=netErr(e); cloudBusy=false; render(); }
+}
+function cloudRestoreForm(){
+  return `<label class="label" for="cloudKeyIn">Backup key</label><input id="cloudKeyIn" placeholder="ABC123-…" autocomplete="off" autocapitalize="off" spellcheck="false" style="font-family:var(--f-ui)">
+    ${ui.cloudErr?`<p class="tiny" style="color:var(--red-hi);margin:0">${esc(ui.cloudErr)}</p>`:""}
+    <button class="btn sm" data-act="cloudrestore" ${cloudBusy?"disabled":""}>${cloudBusy?"Restoring…":"Restore my progress"}</button>
+    <p class="tiny muted" style="margin:0">This replaces everything on this phone with the backup.</p>`;
+}
+function cloudSection(){
+  const c=S.cloud||{};
+  if(!c.on) return `<div class="label">Cloud backup</div><p class="small" style="margin:0">Saves your full progress online every few hours, so a lost or new phone doesn't cost you anything. Restore it with your backup key.</p>
+    ${S.net?"":`<p class="tiny muted" style="margin:0">This creates your hunter profile (the same one Friends uses).</p>`}
+    ${ui.cloudErr?`<p class="tiny" style="color:var(--red-hi);margin:0">${esc(ui.cloudErr)}</p>`:""}
+    <button class="btn sm" data-act="cloudon" ${cloudBusy?"disabled":""}>${cloudBusy?"Turning on…":"Turn on cloud backup"}</button>
+    <details ${ui.restoreOpen?"open":""}><summary class="tiny" style="color:var(--blue-hi);cursor:pointer">Restore from a backup key</summary><div class="stack" style="gap:8px;margin-top:8px">${cloudRestoreForm()}</div></details>`;
+  return `<div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Cloud backup</div><div class="tiny muted">${c.at?"Last saved "+cloudAgo(c.at):"Not saved yet"} · saves every 3 hours while you use the app</div></div><button class="toggle on" data-act="cloudoff" aria-label="Cloud backup"></button></div>
+    ${ui.cloudErr?`<p class="tiny" style="color:var(--red-hi);margin:0">${esc(ui.cloudErr)}</p>`:""}
+    <div class="form-row"><button class="btn sm" data-act="cloudnow" ${cloudBusy?"disabled":""}>${cloudBusy?"Saving…":"Back up now"}</button><button class="btn ghost sm" data-act="cloudkey">${ui.showKey?"Hide backup key":"Show backup key"}</button></div>
+    ${ui.showKey?`<div class="card" style="background:var(--bg-2);padding:12px"><div class="label" style="color:var(--gold)">Your backup key</div><div class="num" style="word-break:break-all;font-size:13px;margin:6px 0 10px;user-select:all">${esc(cloudKey())}</div>
+      <div class="form-row"><button class="btn gold sm" data-act="cloudkeycopy">Copy</button>${hasA("share")?`<button class="btn ghost sm" data-act="cloudkeyshare">Send to myself</button>`:""}</div>
+      <p class="tiny muted" style="margin:8px 0 0">Keep this somewhere safe, like a WhatsApp message to yourself. On a new phone, open the app, tap "Restore from cloud backup" and paste it. Anyone with this key can see your progress, so don't share it.</p></div>`:""}`;
+}
 async function rpc(fn,body){
   const r=await fetch(NET.url+fn,{method:"POST",headers:{"apikey":NET.key,"Content-Type":"application/json"},body:JSON.stringify(body)});
   const t=await r.text(); if(!r.ok){ let m="network"; try{ m=JSON.parse(t).message||m; }catch(e){} throw new Error(m); }
   return t?JSON.parse(t):null;
 }
-const NET_ERR={nudge_limit:"You've already sent 2 to this friend in the last 12 hours.",not_friends:"You can only nudge friends.",code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"Your online ID was rejected. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
+const NET_ERR={no_backup:"There's no cloud backup for that key yet.",backup_too_large:"Your data is too large for a cloud backup. Save a backup file instead.",nudge_limit:"You've already sent 2 to this friend in the last 12 hours.",not_friends:"You can only nudge friends.",code_not_found:"No hunter has that code. Check the 6 letters and try again.",own_code:"That's your own code.",too_many_friends:"You can have up to 50 friends.",not_authorized:"Your online ID was rejected. Leave and rejoin the network in Friends.",busy_try_later:"Too many new players right now. Try again in a few minutes.",network:"Couldn't reach the network. Are you online?"};
 const netErr=e=>NET_ERR[e&&e.message]||(e&&/fetch|network/i.test(e.message)?NET_ERR.network:"Something went wrong: "+(e&&e.message));
 function netPayload(){
   const t=today(), wk=weekKey(t); let wxp=0; for(let i=0;i<7;i++){ const h=S.history[addDay(wk,i)]; if(h) wxp+=h.xp||0; }
@@ -1504,8 +1554,9 @@ let netTimer=null, netLast="";
 function netSchedule(delay){ if(!netOK()||!S||!S.net) return; clearTimeout(netTimer); netTimer=setTimeout(netSync,delay==null?6000:delay); }
 async function netSync(){
   if(!netOK()||!S||!S.net) return;
-  const p=netPayload(), key=JSON.stringify(p); if(key===netLast) return;
+  const p=netPayload(), key=JSON.stringify(p); if(key===netLast){ cloudMaybe(); return; }
   try{ await rpc("ps_sync",{p_id:S.net.id,p_secret:S.net.secret,p}); netLast=key; }catch(e){ if(e.message==="not_authorized") ui.netErr=netErr(e); }
+  cloudMaybe();
 }
 async function netBoard(){
   if(!netOK()||!S||!S.net) return;
@@ -1561,7 +1612,7 @@ function vFriends(){
     <div class="form-row" style="margin-top:10px"><button class="btn gold sm" data-act="cheer" data-id="${esc(sel.id)}">${ico("star","","width:16px;height:16px")}Cheer</button><button class="btn sm" data-act="nudge" data-id="${esc(sel.id)}">${ico("bolt","","width:16px;height:16px")}Nudge</button></div>
     <div class="form-row" style="margin-top:8px"><button class="btn red sm" data-act="unfriend" data-id="${esc(sel.id)}">${ui.pendingUnfriend===sel.id?"Tap again to remove":"Remove friend"}</button><button class="btn ghost sm" data-act="friend" data-id="">Close</button></div></section>`:""}
   <p class="tiny muted center" style="margin:0">Your stats update automatically a few seconds after you complete quests.</p>
-  <button class="tiny muted" style="margin:0 auto;display:block;font-family:var(--f-ui);letter-spacing:.1em" data-act="netleave">${ui.pendingLeave?"TAP AGAIN TO LEAVE AND DELETE YOUR ONLINE PROFILE":"LEAVE THE NETWORK"}</button>
+  <button class="tiny muted" style="margin:0 auto;display:block;font-family:var(--f-ui);letter-spacing:.1em" data-act="netleave">${ui.pendingLeave?(S.cloud&&S.cloud.on?"TAP AGAIN: THIS DELETES YOUR ONLINE PROFILE AND CLOUD BACKUP":"TAP AGAIN TO LEAVE AND DELETE YOUR ONLINE PROFILE"):"LEAVE THE NETWORK"}</button>
   </div>`;
 }
 function friendsCard(){
@@ -1945,7 +1996,7 @@ function vCastle(){
   <div class="stack">
   <section class="card violet"><div class="xp-row" style="margin:0 0 6px"><span>PROGRESS</span><span class="num">${Math.min(f,100)} / 100</span></div><div class="bar violet thick"><i style="width:${Math.min(100,f)}%"></i></div>
     <p class="tiny" style="margin:10px 0 0;color:#d6c8ff">Each cleared day climbs one floor, and a perfect day climbs two. Every 10th floor is a boss that only falls on a perfect day. Bosses drop +200 XP, +150 G, a potion and a chest.${f>=100?" You conquered the castle. The Abyss continues upward.":""}</p></section>
-  <section class="card red boss-card">${artSlot("art/castle-boss.webp","","boss-band")}<div class="boss-cap"><div class="label" style="color:var(--red-hi)">Floor ${nb} boss</div><div style="font-family:var(--f-display);font-weight:700;font-size:20px">${esc(bossName(nb))}</div><div class="tiny muted">Falls only on a perfect day · ${nb-f} floor${nb-f>1?"s":""} away</div></div></section>
+  <section class="card red boss-card">${artSlot("art/cboss-"+bossSlug(bossName(nb))+".webp",`<img src="art/castle-boss.webp" alt="">`,"boss-band")}<div class="boss-cap"><div class="label" style="color:var(--red-hi)">Floor ${nb} boss</div><div style="font-family:var(--f-display);font-weight:700;font-size:20px">${esc(bossName(nb))}</div><div class="tiny muted">Falls only on a perfect day · ${nb-f} floor${nb-f>1?"s":""} away</div></div></section>
   <div class="tower">${rows.join("")}</div>
   </div>`;
 }
@@ -2033,6 +2084,7 @@ function vAwaken(){
       <p class="tiny muted" style="margin:0 0 12px">Six small daily quests. Clear 4 each day to grow. Miss and you face the Penalty Zone. Everything stays private on this phone; no account needed.</p>
       <div class="field" style="margin-bottom:12px"><label class="label" for="onbName">Player name</label><input id="onbName" maxlength="24" value="Nishant"></div>
       <button class="btn wide" data-act="accept">Accept</button>
+      ${window.Android?(ui.restoreOpen?`<div class="stack" style="gap:8px;margin-top:12px">${cloudRestoreForm()}</div>`:`<button class="tiny" style="display:block;margin:12px auto 0;color:var(--blue-hi);font-family:var(--f-ui);letter-spacing:.12em" data-act="restoreopen">RESTORE FROM CLOUD BACKUP</button>`):""}
     </section>
   </div>`;
 }
@@ -2090,7 +2142,7 @@ function clearToasts(){ document.getElementById("toasts").innerHTML=""; }
 function ovSheet(html){ document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg"><section class="card hot sheet">${html}</section></div>`; }
 
 // ================= render =================
-const SCREEN_BG={profile:["hero","70% 30%"],status:["splash","50% 40%"],allocate:["splash","50% 40%"],stats:["arc","50% 30%"],skills:["mind","50% 30%"],army:["castle","50% 35%"],journal:["mind","50% 60%"],quests:["training","50% 20%"],inventory:["gates","50% 30%"],achievements:["arc","50% 20%"],friends:["gates","30% 40%"],store:["castle-boss","50% 25%"],notes:["hero","20% 40%"],body:["training","50% 20%"],settings:["splash","50% 30%"],quiz:["splash","50% 40%"]};
+const SCREEN_BG={profile:["bg-profile","50% 30%","hero"],status:["bg-status","50% 35%","splash"],allocate:["bg-status","50% 35%","splash"],stats:["bg-status","50% 35%","arc"],skills:["bg-skills","50% 30%","mind"],army:["bg-army","50% 35%","castle"],journal:["bg-journal","50% 40%","mind"],notes:["bg-journal","50% 40%","hero"],store:["bg-store","50% 30%","castle-boss"],quests:["training","50% 20%"],inventory:["gates","50% 30%"],achievements:["arc","50% 20%"],friends:["gates","30% 40%"],body:["training","50% 20%"],settings:["splash","50% 30%"],quiz:["splash","50% 40%"]};
 function render(){
   const app=document.getElementById("app"), nav=document.getElementById("nav");
   if(!S){ nav.hidden=true; fx.mode="calm"; app.innerHTML=vAwaken(); glAfter("awaken"); return; }
@@ -2100,7 +2152,7 @@ function render(){
     const dot=(b.dataset.nav==="quests"&&(!!S.penalty||S.bonusLoot>0||(S.history[today()]&&S.history[today()].cleared&&!S.history[today()].lootOpened)))||(b.dataset.nav==="menu"&&S.statPoints>0);
     let d=b.querySelector(".badge-dot"); if(dot&&!d){ d=document.createElement("span"); d.className="badge-dot"; b.appendChild(d);} if(!dot&&d) d.remove(); });
   const V={home:vHome,quests:vQuests,status:vStatus,allocate:vAllocate,achievements:vAch,inventory:vInv,stats:vStats,notes:vNotes,army:vArmy,store:vStore,settings:vSettings,body:vBody,profile:vProfile,friends:vFriends,gates:vGates,run:vRun,castle:vCastle,skills:vSkills,session:vSession,boss:vBoss,arc:vArc,quiz:vQuiz,journal:vJournal,breathe:vBreathe}[screen]||vHome;
-  const bgs=SCREEN_BG[screen]; app.innerHTML=(bgs?`<div class="session-bg scr soft" aria-hidden="true">${artSlot("art/"+bgs[0]+".webp","","full")}</div>`:"")+V(); if(bgs) app.firstElementChild.style.setProperty("--bgpos",bgs[1]); glAfter(screen);
+  const bgs=SCREEN_BG[screen]; app.innerHTML=(bgs?`<div class="session-bg scr soft" aria-hidden="true">${artSlot("art/"+bgs[0]+".webp",bgs[2]?`<img src="art/${bgs[2]}.webp" alt="">`:"","full")}</div>`:"")+V(); if(bgs) app.firstElementChild.style.setProperty("--bgpos",bgs[1]); glAfter(screen);
   const hw=app.querySelector(".heatwrap"); if(hw) hw.scrollLeft=hw.scrollWidth;
   if(!document.getElementById("ov").innerHTML) setScene();
   if(S.pendingLevelUp && !document.getElementById("ov").innerHTML) setTimeout(ovLevelUp,350);
@@ -2124,7 +2176,7 @@ document.addEventListener("click",e=>{
     case "netcopy": { const c=S.net&&S.net.code; if(!c) break; try{ navigator.clipboard.writeText(c).then(()=>toast("Copied","Hunter code "+c,"","copy"),()=>toast("Your code",c,"","copy")); }catch(e){ toast("Your code",c,"","copy"); } break; }
     case "netshare": { const c=S.net&&S.net.code; if(!c) break; const txt="Join me in the Player System, a Solo Leveling-style habit app. Install it: "+NET.apk+" — then open More → Friends and add my hunter code: "+c; if(hasA("share")) Android.share(txt); else { try{ navigator.clipboard.writeText(txt); toast("Invite copied","Paste it into WhatsApp","","share"); }catch(e){} } break; }
     case "unfriend": if(ui.pendingUnfriend!==id){ ui.pendingUnfriend=id; render(); break; } (async()=>{ try{ await rpc("ps_remove_friend",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); ui.friendSel=null; ui.pendingUnfriend=null; await netBoard(); toast("Friends","Friend removed.","","users"); }catch(e){ ui.netErr=netErr(e); render(); } })(); break;
-    case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
+    case "netleave": if(!ui.pendingLeave){ ui.pendingLeave=true; render(); break; } (async()=>{ try{ await rpc("ps_leave",{p_id:S.net.id,p_secret:S.net.secret}); }catch(e){} S.net=null; if(S.cloud) S.cloud.on=false; ui.board=null; ui.pendingLeave=false; netLast=""; commit(); toast("Hunter network","You left. Your online profile was deleted.","","users"); })(); break;
     case "useskill": useSkill(id); break;
     case "archard": ui.arcHard=!ui.arcHard; render(); break;
     case "arcstart": startArc(ui.arcHard); break;
@@ -2155,6 +2207,14 @@ document.addEventListener("click",e=>{
     case "startmin": ui.startQ=null; closeOv(); completeQuest(id,null,{min:true}); break;
     case "startclose": ui.startQ=null; closeOv(); render(); break;
     case "nagtoggle": S.settings.nag=S.settings.nag===false; commit(); break;
+    case "cloudon": cloudEnable(); break;
+    case "cloudoff": S.cloud.on=false; ui.showKey=false; commit(); toast("Cloud backup","Turned off. Your last online backup is kept.","","shield"); break;
+    case "cloudnow": cloudSave(true); break;
+    case "cloudkey": ui.showKey=!ui.showKey; render(); break;
+    case "cloudkeycopy": { const k=cloudKey(); try{ navigator.clipboard.writeText(k).then(()=>toast("Copied","Backup key copied. Keep it somewhere safe.","","copy"),()=>toast("Backup key","Long-press the key to select and copy it.","","copy")); }catch(e){ toast("Backup key","Long-press the key to select and copy it.","","copy"); } break; }
+    case "cloudkeyshare": Android.share("My Player System backup key (keep private): "+cloudKey()); break;
+    case "restoreopen": ui.restoreOpen=true; ui.cloudErr=null; render(); break;
+    case "cloudrestore": cloudRestore(); break;
     case "glitchtoggle": S.settings.glitch=S.settings.glitch===false; glApply(); commit(); if(S.settings.glitch!==false) glBlip(); break;
     case "soundtoggle": S.settings.sound=S.settings.sound===false; commit(); if(S.settings.sound) sfx("done"); break;
     case "urgentdone": completeUrgent(); break;

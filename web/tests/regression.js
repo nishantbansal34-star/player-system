@@ -2,10 +2,10 @@
 const {chromium}=require('playwright'); const path=require('path');
 const APP='file://'+path.resolve(__dirname,'../dist/android-index.html');
 const pad=n=>String(n).padStart(2,'0'); const dk=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
-const results=[]; const ok=(name,cond,info)=>{ results.push([name,!!cond,info||""]); };
+const results=[]; const settle=async(p,cond)=>{ for(let i=0;i<40;i++){ await p.clock.runFor(150); await new Promise(r=>setTimeout(r,100)); if(await p.evaluate(cond).catch(()=>false)) return true; } return false; }; const ok=(name,cond,info)=>{ results.push([name,!!cond,info||""]); };
 function baseSeed(t,extra){ return Object.assign({v:3,name:'Tester',startDate:'2026-10-01',lastSeen:dk(t),level:5,xp:0,statPoints:0,stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:100,potions:0,streak:3,bestStreak:3,totalDays:3,perfectDays:0,job:'None',title:'Awakened',ach:['awakened'],items:[],counts:{},penalty:null,jobTrial:null,flags:{},history:{},shadows:[],log:[],notes:[],notesSeen:0,castle:{floor:0},keys:1,mp:50,urgent:{[dk(t)]:null,[dk(new Date(t.getTime()+864e5))]:null}},extra||{}); }
 async function open(b,time,seed,opts={}){
-  const ctx=await b.newContext({viewport:{width:opts.width||390,height:820},timezoneId:'Asia/Kolkata'}); const p=await ctx.newPage(); p.setDefaultTimeout(6000); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
+  const ctx=await b.newContext({viewport:{width:opts.width||390,height:820},timezoneId:'Asia/Kolkata',reducedMotion:opts.motion?'no-preference':'reduce'}); const p=await ctx.newPage(); p.setDefaultTimeout(6000); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   await p.clock.install({time});
   await p.addInitScript(({seed})=>{ if(!window.__mem) window.__mem={}; let st=localStorage.getItem('__t')||JSON.stringify(seed); window.__st=()=>JSON.parse(st);
     window.Android={load:()=>st,save:j=>{st=j;localStorage.setItem('__t',j)},vibrate:()=>{},versionCode:()=>8,listSnapshots:()=>'[]',readSnapshot:()=>st,exportBackup:()=>{},importBackup:()=>{},requestNotifications:()=>{},share:()=>{},scheduleRunEnd:()=>{},cancelRunEnd:()=>{},scheduleSessionEnd:t=>{window.__sessEnd=t},cancelSessionEnd:()=>{window.__sessEnd=null}}; },{seed});
@@ -162,6 +162,40 @@ async function open(b,time,seed,opts={}){
     const fr=await p.$('[data-act=friend]:not([data-id=me1])'); if(fr){ await fr.click({force:true}); await p.clock.runFor(300); await p.$eval('[data-act=nudge]',e=>e.click()); await p.clock.runFor(2500); } else console.log('NO FRIEND ROW');
     ok('23 nudge: button calls ps_nudge for the friend',!!sent.find(x=>x[0]==='ps_nudge'&&x[1].p_friend==='f1'&&x[1].p_kind==='nudge'),sent.map(x=>x[0]).join(','));
     await ctx.close(); }
+
+  // 24. Cloud backup: turn on, save without the secret, show key
+  { const {ctx,p,st,close}=await open(b,T,baseSeed(T));
+    const sent=[]; await p.route('**/rest/v1/rpc/**',async r=>{ const fn=r.request().url().split('/').pop(); const body=JSON.parse(r.request().postData()||'{}'); sent.push([fn,body]);
+      const out=fn==='ps_register'?{id:'u1',secret:'sec123',code:'QWE123'}:fn==='ps_backup_save'?'"2026-10-28T03:00:00Z"':fn==='ps_board'?[]:fn==='ps_inbox'?[]:null;
+      await r.fulfill({status:200,contentType:'application/json',body:out==null?'':typeof out==='string'?out:JSON.stringify(out)}); });
+    await p.evaluate(()=>__dbg.go('settings')); await p.clock.runFor(300); await p.$eval('[data-act=setpage][data-t=cloud]',e=>e.click()); await p.clock.runFor(300);
+    await p.$eval('[data-act=cloudon]',e=>e.click()); await settle(p,()=>{ const s=window.__st(); return !!(s&&s.cloud&&s.cloud.at>0); }); await p.clock.runFor(300); await close();
+    const save=sent.find(x=>x[0]==='ps_backup_save'); const s=await st();
+    ok('24 cloud: turning on registers and saves a backup',!!sent.find(x=>x[0]==='ps_register')&&!!save&&save[1].p_data.level===5,sent.map(x=>x[0]).join(','));
+    ok('24 cloud: backup data never contains the secret',save&&!JSON.stringify(save[1].p_data).includes('sec123'));
+    ok('24 cloud: state remembers backup is on',s.cloud&&s.cloud.on===true&&s.cloud.at>0);
+    const txt=await p.textContent('main'); ok('24 cloud: backup key shown to the player',txt.includes('QWE123-sec123'));
+    await ctx.close(); }
+  // 25. Cloud restore from the first screen on a new phone
+  { const {ctx,p,st,close}=await open(b,T,null);
+    await p.route('**/rest/v1/rpc/**',async r=>{ const fn=r.request().url().split('/').pop();
+      const out=fn==='ps_backup_restore'?{id:'u1',updated_at:'2026-10-28T03:00:00Z',data:Object.assign(baseSeed(T),{level:17,name:'Nishant',totalXp:4000})}:[];
+      await r.fulfill({status:200,contentType:'application/json',body:JSON.stringify(out)}); });
+    await p.$eval('[data-act=restoreopen]',e=>e.click()); await p.clock.runFor(300); await p.fill('#cloudKeyIn','qwe123-sec123'); await p.$eval('[data-act=cloudrestore]',e=>e.click()); await settle(p,()=>{ const s=window.__st(); return !!(s&&s.level===17); }); await close();
+    const s=await st(); ok('25 cloud restore: progress comes back on a new phone',s.level===17&&s.name==='Nishant'&&s.net&&s.net.code==='QWE123'&&s.net.secret==='sec123',JSON.stringify({l:s.level,n:s.net}));
+    await ctx.close(); }
+
+  // 26. Glitch effects run on screen change and taps, and switch off in settings
+  { const {ctx,p,errs,st}=await open(b,T,baseSeed(T),{motion:true});
+    await p.$eval('[data-nav=gates]',e=>e.click()); await p.clock.runFor(50);
+    const enter=await p.evaluate(()=>document.getElementById('app').classList.contains('gl-enter')&&document.getElementById('glveil').classList.contains('run'));
+    ok('26 glitch: screen change plays the glitch reveal',enter);
+    const titled=await p.evaluate(()=>!!document.querySelector('.screen-title.gtext[data-text]'));
+    ok('26 glitch: titles get the RGB-split layer',titled);
+    await p.evaluate(()=>__dbg.S().settings.glitch=false); await p.$eval('[data-nav=home]',e=>e.click()); await p.clock.runFor(50);
+    const off=await p.evaluate(()=>document.body.classList.contains('noglitch')&&!document.getElementById('glveil').classList.contains('run')||document.body.classList.contains('noglitch'));
+    ok('26 glitch: switching it off stops the effects',off);
+    ok('26 errors with effects on',errs.length===0,errs.join('; ')); await ctx.close(); }
 
   await b.close();
   let pass=0; for(const [n,c,i] of results){ console.log((c?'PASS ':'FAIL ')+n+(i&&!c?'  ['+i+']':'')); if(c) pass++; }

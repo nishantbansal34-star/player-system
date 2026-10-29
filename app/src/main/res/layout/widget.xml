@@ -4,6 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_bg"
+    android:clipToOutline="true"
     android:orientation="vertical"
     android:padding="12dp">
 
@@ -15,12 +16,18 @@
         android:orientation="horizontal"
         android:paddingStart="4dp"
         android:paddingEnd="4dp">
+        <ImageView
+            android:layout_width="26dp"
+            android:layout_height="26dp"
+            android:layout_marginEnd="8dp"
+            android:contentDescription="@null"
+            android:src="@drawable/widget_avatar" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:fontFamily="serif"
             android:letterSpacing="0.32"
-            android:shadowColor="#FF3D7BFF"
+            android:shadowColor="#FF8B5CFF"
             android:shadowRadius="10"
             android:text="SYSTEM"
             android:textColor="#FFD7E4FF"
@@ -50,7 +57,7 @@
             android:id="@+id/level"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:shadowColor="#FF3D7BFF"
+            android:shadowColor="#FF8B5CFF"
             android:shadowRadius="12"
             android:text="LV 1"
             android:textColor="#FFFFFFFF"
