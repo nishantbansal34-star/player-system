@@ -181,6 +181,9 @@ button{cursor:pointer;background:none;border:0;padding:0}
 .tile .nm{font-size:12.5px;line-height:1.2;font-weight:600;color:#dbe5ff}
 .tile .ct{font-family:var(--f-ui);font-size:11px;color:var(--dim)}
 .tile.locked{opacity:.35}
+.ach-img{position:relative;display:block;width:100%;height:100%}.ach-img .artslot{width:100%;height:100%}
+.ach-img.off img{filter:grayscale(1) brightness(.55)}.tile.locked:has(.ach-img){opacity:.6}
+.medal:has(.ach-img){background:none!important;border-radius:50%}
 .empty{padding:22px;text-align:center;color:var(--dim)}
 
 /* stats */
@@ -625,7 +628,8 @@ const ico=(n,cls,st)=>`<svg class="ico ${cls||""}" ${st?`style="${st}"`:""} view
 
 // ================= item art =================
 let gid=0;
-const ART_IMG=Object.fromEntries(["core","flask","potion","key","scroll","cloak","sword","ring","crown","sigil"].map(k=>[k,"art/item-"+k+".webp"]));
+const ART_IMG=Object.fromEntries(["core","flask","potion","key","scroll","cloak","sword","ring","crown","sigil","chest","gold"].map(k=>[k,"art/item-"+k+".webp"])); ART_IMG.crystal="art/item-xp.webp";
+function achArt(id,has){ return `<span class="ach-img${has?"":" off"}">${artSlot("art/ach-"+id+".webp","","ico")}</span>`; }
 function art(key){ return ART_IMG[key]?artSlot(ART_IMG[key],artSvg(key),"ico"):artSvg(key); }
 function artSvg(key){
   const g=++gid;
@@ -1250,7 +1254,7 @@ function vAch(){
   return `${topbar("Achievements")}
   <div class="seg" style="margin-bottom:12px">${["all","unlocked","locked"].map(t=>`<button class="${ui.achTab===t?"on":""}" data-act="achtab" data-t="${t}">${t}</button>`).join("")}</div>
   <div class="stack">${list.map(a=>{ const has=S.ach.includes(a.id);
-    return `<section class="card ach ${a.rar}${has?"":" locked"}"><div class="medal">${ico(has?a.icon:"lock")}</div>
+    return `<section class="card ach ${a.rar}${has?"":" locked"}"><div class="medal">${achArt(a.id,has)}</div>
       <div style="min-width:0"><div class="nm">${a.name}</div><div class="ds">${a.desc}</div>${has?(S.title===a.name?`<span class="pill gold" style="margin-top:6px">Equipped title</span>`:`<button class="pill" style="margin-top:6px" data-act="title" data-id="${a.id}">Equip as title</button>`):""}</div>
       <div class="rar">${(a.rar==="legendary"||a.rar==="mythic")&&has?`<div class="stars">★★★★★</div>`:""}${a.rar}</div></section>`;}).join("")||`<div class="empty">Nothing here yet.</div>`}</div>`;
 }
@@ -1263,8 +1267,8 @@ function vInv(){
     tiles.push({art:"key",name:"Dungeon Key",rar:"uncommon",qty:S.keys||0,ct:"Opens an instant dungeon",act:"go",to:"gates",locked:!(S.keys>0)});
     Object.keys(ITEMS).forEach(k=>{ const has=S.items.includes(k); tiles.push({art:k,name:ITEMS[k].name,rar:ITEM_RAR[k]||"rare",qty:has?1:0,ct:Object.entries(ITEMS[k].bonus).map(([s,v])=>"+"+v+" "+s).slice(0,2).join(" ")+(Object.keys(ITEMS[k].bonus).length>2?" …":""),act:"inv-item",id:k,locked:!has}); });
   }
-  if(tab==="titles") ACH.forEach(a=>{ const has=S.ach.includes(a.id); tiles.push({icon:"crown",name:a.name,rar:a.rar,ct:has?(S.title===a.name?"Equipped":"Tap to equip"):"Locked",act:has?"title":"",id:a.id,locked:!has}); });
-  if(tab==="badges") ACH.forEach(a=>{ const has=S.ach.includes(a.id); tiles.push({icon:has?a.icon:"lock",name:a.name,rar:a.rar,ct:has?a.desc:"Locked",locked:!has}); });
+  if(tab==="titles") ACH.forEach(a=>{ const has=S.ach.includes(a.id); tiles.push({ach:a.id,has,name:a.name,rar:a.rar,ct:has?(S.title===a.name?"Equipped":"Tap to equip"):"Locked",act:has?"title":"",id:a.id,locked:!has}); });
+  if(tab==="badges") ACH.forEach(a=>{ const has=S.ach.includes(a.id); tiles.push({ach:a.id,has,name:a.name,rar:a.rar,ct:has?a.desc:"Locked",locked:!has}); });
   if(flt==="owned") tiles=tiles.filter(t=>!t.locked); if(flt==="locked") tiles=tiles.filter(t=>t.locked);
   tiles.sort((a,b)=>srt==="name"?a.name.localeCompare(b.name):(RAR_ORDER[a.rar]-RAR_ORDER[b.rar])||(a.locked-b.locked));
   const rc={legendary:"var(--gold)",epic:"var(--violet)",rare:"var(--blue)",mythic:"var(--red)",uncommon:"var(--cyan)",common:"var(--dim)"};
@@ -1274,7 +1278,7 @@ function vInv(){
     <label class="tiny muted" for="invSort" style="margin-left:auto">Sort</label><select id="invSort"><option value="rarity" ${srt==="rarity"?"selected":""}>Rarity</option><option value="name" ${srt==="name"?"selected":""}>Name</option></select></div>
   <div class="inv-grid">${tiles.map(t=>`<button class="card tile r-${t.rar}${t.locked?" locked":""}" ${t.act?`data-act="${t.act}" data-id="${t.id||""}" ${t.to?`data-to="${t.to}"`:""}`:""} aria-label="${esc(t.name)}${t.locked?", locked":""}">
     ${t.qty>1?`<span class="qty num">×${t.qty}</span>`:""}
-    <div class="art">${t.art?art(t.art):`<div style="width:100%;height:100%;display:grid;place-items:center;color:${rc[t.rar]}">${ico(t.icon,"","width:40px;height:40px")}</div>`}</div>
+    <div class="art">${t.ach?achArt(t.ach,t.has):t.art?art(t.art):`<div style="width:100%;height:100%;display:grid;place-items:center;color:${rc[t.rar]}">${ico(t.icon,"","width:40px;height:40px")}</div>`}</div>
     <div class="nm">${esc(t.name)}</div><div class="rr" style="color:${rc[t.rar]}">${t.rar}</div><div class="ct">${esc(t.ct)}</div></button>`).join("")}</div>
   ${tiles.length?"":`<div class="empty">Nothing here yet. Clear quests and open loot boxes to collect items.</div>`}
   <p class="tiny muted center" style="margin-top:12px">Items drop from loot boxes, chests and bosses. Equipment bonuses apply automatically.</p>`;
@@ -2023,7 +2027,7 @@ function openLoot(bonus){
   else if(r<.18){ S.potions++; artKey="potion"; res={t:"Status Recovery potion",d:"Cancels one penalty."}; }
   else if(r<.33){ S.keys=(S.keys||0)+1; artKey="key"; res={t:"Dungeon key",d:"Opens an instant dungeon in Gates."}; }
   else if(r<.45){ const x=gain(30+Math.floor(Math.random()*51)); res={t:"+"+x+" bonus XP",d:"Experience added."}; }
-  else { const g=50+Math.floor(Math.random()*101); S.gold+=g; artKey="chest"; res={t:"+"+g+" Gold",d:"Spend it in the Store."}; }
+  else { const g=50+Math.floor(Math.random()*101); S.gold+=g; artKey="gold"; res={t:"+"+g+" Gold",d:"Spend it in the Store."}; }
   log("Loot box: "+res.t);
   fx.mode="burst"; haptic(80); document.getElementById("toasts").innerHTML="";
   document.getElementById("ov").innerHTML=`<div class="overlay" data-act="ov-bg" style="background:rgba(2,4,12,.35)"><span class="shock"></span><span class="shock s2"></span><div class="lu" style="position:relative">
