@@ -382,6 +382,14 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .breath-orb{width:240px;height:240px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgb(var(--violet-rgb) / .55),rgb(var(--blue-rgb) / .25) 60%,transparent 72%);box-shadow:0 0 60px rgb(var(--violet-rgb) / .45),inset 0 0 40px rgb(var(--blue-rgb) / .35);border:1.5px solid rgb(var(--violet-rgb) / .6);transition:transform 1s linear}
 .breath-txt{position:absolute;text-align:center}
 @media (prefers-reduced-motion:reduce){.breath-orb{transition:none}}
+/* ===== weekly events ===== */
+.ev-badge{position:relative;display:inline-grid;place-items:center;flex:none}
+.ev-badge>img{position:absolute;inset:-8%;width:116%;height:116%;object-fit:contain}
+.ev-badge .ev-ico{position:relative;display:grid;place-items:center;padding-bottom:6%;filter:drop-shadow(0 0 6px currentColor)}
+.ev-badge.off{filter:grayscale(.9) brightness(.6)}
+.card.event{border-color:rgb(var(--violet-rgb) / .45);background:linear-gradient(150deg,rgb(var(--violet-rgb) / .14),transparent 65%)}
+.card.bonus{border-color:rgb(var(--gold-rgb) / .45);background:linear-gradient(150deg,rgb(var(--gold-rgb) / .10),transparent 65%)}
+.card.bonus.done{opacity:.75}
 /* ===== ranked play ===== */
 .rk-chip{display:inline-flex;white-space:nowrap;align-items:center;gap:3px;margin-left:8px;padding:1px 7px;border-radius:99px;border:1px solid rgb(var(--violet-rgb) / .45);color:var(--violet-hi);font-size:9.5px;letter-spacing:.12em}
 .rk-chip.on{background:rgb(var(--violet-rgb) / .22);border-color:rgb(var(--violet-rgb) / .8);color:#e6dcff}
@@ -1033,7 +1041,7 @@ function reconcile(){
   const t=today(), wk=weekKey(t); let c=0; for(let i=0;i<7;i++){ const k=addDay(wk,i); if(S.history[k]&&S.history[k].cleared) c++; }
   if(c>=5 && !S.weekly[wk]){ S.weekly[wk]=true; const x=gain(100,t); S.gold+=150; S.bonusLoot=(S.bonusLoot||0)+1;
     note("loot","Weekly Dungeon cleared","+"+x+" XP, +150 G and a dungeon chest.","gold"); setTimeout(()=>toast("Weekly Dungeon cleared","+"+x+" XP · +150 G · dungeon chest","gold","shield"),800); }
-  reconcileCastle(); urgentSweep(); reconcileArc(); reconcileSeason();
+  reconcileCastle(); urgentSweep(); reconcileArc(); reconcileSeason(); reconcileEvent();
   checkAch();
 }
 // ================= persistence =================
@@ -1064,7 +1072,7 @@ async function boot(){
   if(S&&S.run){ checkRunReturn(); if(S&&S.run) screen="run"; render(); }
   setInterval(tick,1000);
   setTimeout(()=>checkUpdate(false),2500);
-  setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); },3000);
+  setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); evFetch(); },3000);
   setTimeout(()=>{ const sp=document.getElementById("splash"); document.body.classList.remove("splashing"); if(sp){ sp.classList.add("gone"); setTimeout(()=>{ sp.remove(); setScene(); },650); } },1500);
 }
 window.__imported=function(json){ try{ const d=JSON.parse(json); if(!d||!d.level) throw 0; S=migrate(d); processDays(); toast("Backup","Progress restored from file.","","check"); commit(); }catch(e){ toast("Backup","That file isn't a Player System backup.","red","x"); } };
@@ -1079,7 +1087,7 @@ async function checkUpdate(manual){
 }
 window.__appLeft=function(interactive){ try{ if(S&&S.cloud&&S.cloud.on&&Date.now()-(S.cloud.at||0)>20*60000) cloudSave(false); }catch(e){} if(S&&S.run&&interactive){ S.run.left=Date.now(); dirty=true; flush(); } };
 function checkRunReturn(){ if(!S||!S.run) return; if(S.run.left){ const away=Date.now()-S.run.left; if(away>45000){ endRun(false,"You left the dungeon for too long. The key is lost."); return; } S.run.left=null; commit(); } if(Date.now()>=S.run.endsAt) endRun(true); }
-window.__onResume=function(){ if(!window.Android) return; ui.hstat=null; setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } checkRunReturn(); if(S&&S.run){ screen="run"; render(); } } }catch(e){} };
+window.__onResume=function(){ if(!window.Android) return; ui.hstat=null; setTimeout(()=>{ if(S&&S.net) netBoard(); healthPull(); evFetch(); },800); try{ const d=JSON.parse(Android.load()||"null"); if(d){ S=migrate(d); if(processDays()) commit(); else { checkAch(); render(); } checkRunReturn(); if(S&&S.run){ screen="run"; render(); } } }catch(e){} };
 window.__back=function(){ if(document.getElementById("ov").innerHTML){ closeOv(); return true; } if(screen==="settings"&&ui.setPage){ ui.setPage=null; render(); return true; } if(hist.length){ screen=hist.pop(); render(); return true; } if(screen!=="home"){ screen="home"; render(); return true; } return false; };
 function tick(){
   if(!S) return;
@@ -1173,6 +1181,8 @@ function vHome(){
       <div class="tiny muted" style="margin-top:2px">${S.pause?"Pause mode · no penalties":"Resets in <span class='num' id='clock'>"+untilMidnight()+"</span>"}</div></section>
     ${checkinDue()?`<section class="card" data-act="go" data-to="body" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("stats","","color:var(--blue-hi)")}<div><div class="label">Weekly check-in</div><div class="small">Log your weight and max reps to track real progress.</div></div></section>`:""}
     ${journalCard()}
+    ${bonusCard(true)}
+    ${evCard()}
     ${arcCard()}
     ${!S.quiz?`<section class="card" data-act="quizstart" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("target","","color:var(--cyan);width:26px;height:26px")}<div><div class="label" style="color:var(--cyan)">Personalize your System</div><div class="small">2-minute assessment: targets and quest times fitted to your real life.</div></div></section>`:""}
     ${friendsCard()}
@@ -1240,6 +1250,7 @@ function vQuests(){
       <button class="qcheck" data-act="${d?"":"done"}" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?"Completed":"Mark "+esc(q.name)+" done"}" ${d?"disabled":""}>${ico("check")}</button>
       ${pct>0&&!d?`<div class="bar" style="grid-column:2/-1;height:4px"><i style="width:${Math.round(pct*100)}%"></i></div>`:""}
     </section>`;}).join("")}
+  ${back?"":bonusCard(false)}
   <div class="progress-line"><span>${n}/${N} complete</span><span>Clear ${CA} to avoid the penalty · <span class="num" id="clock">${untilMidnight()}</span></span></div>
   <div class="bar"><i style="width:${Math.round(n/N*100)}%"></i></div>
   ${back?"":h.cleared&&!h.lootOpened?`<button class="btn wide" data-act="loot">${ico("chest")}Claim all completed</button>`:
@@ -1304,9 +1315,10 @@ function vInv(){
     Object.keys(ITEMS).forEach(k=>{ const has=S.items.includes(k); tiles.push({art:k,name:ITEMS[k].name,rar:ITEM_RAR[k]||"rare",qty:has?1:0,ct:Object.entries(ITEMS[k].bonus).map(([s,v])=>"+"+v+" "+s).slice(0,2).join(" ")+(Object.keys(ITEMS[k].bonus).length>2?" …":""),act:"inv-item",id:k,locked:!has}); });
   }
   if(tab==="titles") ACH.forEach(a=>{ const has=S.ach.includes(a.id); tiles.push({ach:a.id,has,name:a.name,rar:a.rar,ct:has?(S.title===a.name?"Equipped":"Tap to equip"):"Locked",act:has?"title":"",id:a.id,locked:!has}); });
+  if(tab==="badges"){ const cur=evNow().badge; const evb=(S.evBadges||[]).slice().reverse(); if(!evb.some(b=>b.id===cur.id)) tiles.push({evb:cur,has:false,name:cur.name,rar:cur.rar,ct:"This week's event badge"}); evb.forEach(b=>tiles.push({evb:b,has:true,name:b.name,rar:b.rar,ct:"Event badge · week of "+parseDay(b.week).toLocaleDateString("en-IN",{day:"numeric",month:"short"})})); }
   if(tab==="badges") ACH.forEach(a=>{ const has=S.ach.includes(a.id); tiles.push({ach:a.id,has,name:a.name,rar:a.rar,ct:has?a.desc:"Locked",locked:!has}); });
   if(flt==="owned") tiles=tiles.filter(t=>!t.locked); if(flt==="locked") tiles=tiles.filter(t=>t.locked);
-  tiles.sort((a,b)=>srt==="name"?a.name.localeCompare(b.name):(RAR_ORDER[a.rar]-RAR_ORDER[b.rar])||(a.locked-b.locked));
+  tiles.sort((a,b)=>((b.evb?1:0)-(a.evb?1:0))||(srt==="name"?a.name.localeCompare(b.name):(RAR_ORDER[a.rar]-RAR_ORDER[b.rar])||(a.locked-b.locked)));
   const rc={legendary:"var(--gold)",epic:"var(--violet)",rare:"var(--blue)",mythic:"var(--red)",uncommon:"var(--cyan)",common:"var(--dim)"};
   return `${topbar("Inventory")}
   <div class="seg" style="margin-bottom:10px">${[["items","Items"],["titles","Titles"],["badges","Badges"]].map(t=>`<button class="${tab===t[0]?"on":""}" data-act="invtab" data-t="${t[0]}">${t[1]}</button>`).join("")}</div>
@@ -1314,7 +1326,7 @@ function vInv(){
     <label class="tiny muted" for="invSort" style="margin-left:auto">Sort</label><select id="invSort"><option value="rarity" ${srt==="rarity"?"selected":""}>Rarity</option><option value="name" ${srt==="name"?"selected":""}>Name</option></select></div>
   <div class="inv-grid">${tiles.map(t=>`<button class="card tile r-${t.rar}${t.locked?" locked":""}" ${t.act?`data-act="${t.act}" data-id="${t.id||""}" ${t.to?`data-to="${t.to}"`:""}`:""} aria-label="${esc(t.name)}${t.locked?", locked":""}">
     ${t.qty>1?`<span class="qty num">×${t.qty}</span>`:""}
-    <div class="art">${t.ach?achArt(t.ach,t.has):t.art?art(t.art):`<div style="width:100%;height:100%;display:grid;place-items:center;color:${rc[t.rar]}">${ico(t.icon,"","width:40px;height:40px")}</div>`}</div>
+    <div class="art">${t.evb?evBadge(t.evb,92,t.has):t.ach?achArt(t.ach,t.has):t.art?art(t.art):`<div style="width:100%;height:100%;display:grid;place-items:center;color:${rc[t.rar]}">${ico(t.icon,"","width:40px;height:40px")}</div>`}</div>
     <div class="nm">${esc(t.name)}</div><div class="rr" style="color:${rc[t.rar]}">${t.rar}</div><div class="ct">${esc(t.ct)}</div></button>`).join("")}</div>
   ${tiles.length?"":`<div class="empty">Nothing here yet. Clear quests and open loot boxes to collect items.</div>`}
   <p class="tiny muted center" style="margin-top:12px">Items drop from loot boxes, chests and bosses. Equipment bonuses apply automatically.</p>`;
@@ -1491,6 +1503,89 @@ function vSettingsFull(){
 // ================= friends network (Android app only) =================
 const NET={url:"https://csbxmdsquacohndqxslh.supabase.co/rest/v1/rpc/",key:"sb_publishable_iDh6DvN76tEwcq-0ucry3w_coNKAtOQ",apk:"https://github.com/"+REPO+"/releases/latest/download/PlayerSystem.apk"};
 const netOK=()=>!!window.Android;
+// ================= weekly events =================
+// Each week brings a theme, a bonus task per day (extra XP, not counted for clears or ranking) and a weekly challenge that awards XP and a collectible badge.
+// New weeks are published on the server (private.weekly_events); a built-in rotation keeps it working offline.
+const EV_POOL=[
+ {theme:"Discipline Week",tagline:"Do it when you don't feel like it.",color:"violet",daily:["Make your bed within 5 minutes of waking","No snacks after 9 PM","Phone in another room for 1 hour","Finish one task you've been avoiding","No social media before noon","Read 5 pages before opening any app","Lights out 30 minutes earlier"],challenge:{type:"clear_days",n:5,xp:200,text:"Clear 5 days this week"},badge:{name:"Unbending",icon:"shield",rar:"epic"}},
+ {theme:"Focus Week",tagline:"One task. Full attention.",color:"blue",daily:["25 minutes on one task with no switching","Close every browser tab you don't need","Write down 3 distractions and remove one","Work 45 minutes with the phone face down","Single-task through lunch: no phone while eating","Clear your inbox or messages to zero","Review the week's wins in 5 lines"],challenge:{type:"quest_days",quest:"deep",n:4,xp:180,text:"Complete Deep Work on 4 days"},badge:{name:"Locked In",icon:"target",rar:"rare"}},
+ {theme:"Vitality Week",tagline:"Energy is a skill.",color:"green",daily:["Drink a full glass of water right after waking","Eat a fruit with breakfast","10 minutes of sunlight before noon","No sugary drinks today","Walk while taking one phone call","Sleep before 11:30 PM","Cook one simple meal at home"],challenge:{type:"quest_days",quest:"water",n:6,xp:160,text:"Complete Hydration on 6 days"},badge:{name:"Living Spring",icon:"drop",rar:"rare"}},
+ {theme:"Scholar Week",tagline:"Ten pages a day becomes a library.",color:"gold",daily:["Learn one new word and use it today","Watch a 10-minute lesson on your trade","Write a 3-line summary of what you read","Teach someone one thing you learned","Read during your commute or a break","Note one business idea and one next step","Read 10 extra pages"],challenge:{type:"quest_days",quest:"read",n:5,xp:180,text:"Complete Knowledge on 5 days"},badge:{name:"Sage's Mark",icon:"book",rar:"epic"}},
+ {theme:"Endurance Week",tagline:"Distance is just patience in motion.",color:"cyan",daily:["Walk 1,500 extra steps","Take the stairs all day","15-minute brisk walk after a meal","Park or get off farther away","Walk during one meeting or call","A 20-minute evening walk","Beat yesterday's step count"],challenge:{type:"quest_days",quest:"walk",n:5,xp:180,text:"Hit your steps on 5 days"},badge:{name:"Long Road",icon:"shoe",rar:"rare"}},
+ {theme:"Shadow Week",tagline:"The Monarch's army grows in silence.",color:"violet",daily:["Do one kind thing and tell no one","Finish your quests before 6 PM","Wake up at the same time as yesterday","Spend 10 minutes planning tomorrow","No complaining for the whole day","Do your hardest quest first","Clear every quest you can before dinner"],challenge:{type:"perfect_days",n:2,xp:250,text:"Get 2 perfect days this week"},badge:{name:"Shadow Sovereign",icon:"ghost",rar:"legendary"}},
+ {theme:"Calm Week",tagline:"A still mind hits harder.",color:"blue",daily:["5 minutes in the Mind gate","Write one line in your journal","No screens for 20 minutes before bed","Take 10 slow breaths before a hard task","Spend 10 minutes outside without your phone","Stretch for 5 minutes after waking","Write 3 things you're grateful for"],challenge:{type:"journal_days",n:4,xp:160,text:"Write your daily log on 4 days"},badge:{name:"Still Water",icon:"moon",rar:"rare"}},
+ {theme:"Hunter's Rush",tagline:"Earn more, faster.",color:"red",daily:["Complete a quest before 9 AM","Finish 3 quests before noon","Beat the daily boss before 1 PM","Use the 2-minute start on your hardest quest","Complete a quest within 20 minutes of the last one","Finish every quest by 8 PM","Earn 200 XP today"],challenge:{type:"xp_week",n:1200,xp:220,text:"Earn 1,200 XP this week"},badge:{name:"Rush Hunter",icon:"flame",rar:"epic"}}
+];
+const EV_ICONS=["home","bell","dumbbell","book","laptop","shoe","drop","moon","heart","target","bulb","wind","fist","trophy","user","ghost","coin","check","bolt","flame","chest","shield","crown","star","sword"];
+const EV_TYPES=["clear_days","perfect_days","quest_days","bonus_days","xp_week","journal_days","mind_min"];
+const EV_RARS=["common","rare","epic","legendary","mythic"];
+const EV_TINT={common:"grayscale(1) brightness(1.1)",rare:"hue-rotate(-38deg)",epic:"none",legendary:"hue-rotate(150deg) saturate(1.6) brightness(1.15)",mythic:"hue-rotate(95deg) saturate(1.5)"};
+const clampN=(v,a,b,d)=>{ v=Number(v); return isFinite(v)?Math.max(a,Math.min(b,Math.round(v))):d; };
+function evSanitize(d,wk){
+  if(!d||typeof d!=="object") return null;
+  const daily=(Array.isArray(d.daily)?d.daily:[]).slice(0,7).map(x=>typeof x==="string"?{text:x,xp:25}:x).filter(x=>x&&x.text).map(x=>({text:String(x.text).slice(0,90),xp:clampN(x.xp,10,60,25)}));
+  if(daily.length<7) return null;
+  const c=d.challenge||{}; if(!EV_TYPES.includes(c.type)) return null;
+  const nMax=c.type==="xp_week"?5000:c.type==="mind_min"?150:7;
+  const ch={type:c.type,quest:typeof c.quest==="string"?c.quest.slice(0,12):"",n:clampN(c.n,1,nMax,3),xp:clampN(c.xp,50,300,150),text:String(c.text||"Weekly challenge").slice(0,60)};
+  if(ch.type==="quest_days"&&!qById(ch.quest)) return null;
+  const b=d.badge||{};
+  return {week:wk,theme:String(d.theme||"Weekly Event").slice(0,28),tagline:String(d.tagline||"").slice(0,90),color:String(d.color||"blue").slice(0,10),daily,challenge:ch,
+    badge:{id:"wk-"+wk,name:String(b.name||"Weekly Badge").slice(0,24),icon:EV_ICONS.includes(b.icon)?b.icon:"star",rar:EV_RARS.includes(b.rar)?b.rar:"rare",desc:String(b.desc||"").slice(0,90)}};
+}
+function evBuiltIn(wk){
+  const n=Math.floor(parseDay(wk).getTime()/(7*864e5)); const t=EV_POOL[((n%EV_POOL.length)+EV_POOL.length)%EV_POOL.length];
+  const xps=[25,25,30,30,35,25,30];
+  return evSanitize({theme:t.theme,tagline:t.tagline,color:t.color,daily:t.daily.map((x,i)=>({text:x,xp:xps[i]})),challenge:t.challenge,badge:Object.assign({desc:t.challenge.text+" in "+t.theme+"."},t.badge)},wk);
+}
+function evFor(wk){ const c=(S.evCache||{})[wk]; return (c&&evSanitize(c,wk))||evBuiltIn(wk); }
+const evNow=()=>evFor(weekKey(today()));
+async function evFetch(){
+  if(!netOK()||!S) return;
+  try{ const rows=await rpc("ps_weekly",{p_week:weekKey(today())}); if(!Array.isArray(rows)) return; S.evCache=S.evCache||{};
+    rows.forEach(r=>{ if(r&&r.week&&r.data) S.evCache[String(r.week).slice(0,10)]=r.data; });
+    const keys=Object.keys(S.evCache).sort(); while(keys.length>6) delete S.evCache[keys.shift()];
+    reconcileEvent(); dirty=true; flush(); if(screen==="home"||screen==="quests"||screen==="inventory") render(); }catch(e){}
+}
+function evDays(wk){ const out=[]; for(let i=0;i<7;i++){ const k=addDay(wk,i); if(k>today()) break; out.push(k); } return out; }
+function evProgress(ev){
+  const c=ev.challenge, days=evDays(ev.week), H=k=>S.history[k]||{q:{}};
+  let v=0;
+  if(c.type==="clear_days") v=days.filter(k=>H(k).cleared).length;
+  else if(c.type==="perfect_days") v=days.filter(k=>H(k).perfect).length;
+  else if(c.type==="quest_days") v=days.filter(k=>H(k).q&&H(k).q[c.quest]).length;
+  else if(c.type==="bonus_days") v=days.filter(k=>H(k).bonus).length;
+  else if(c.type==="xp_week") v=days.reduce((a,k)=>a+(H(k).xp||0),0);
+  else if(c.type==="journal_days") v=days.filter(k=>H(k).journal).length;
+  else if(c.type==="mind_min") v=days.reduce((a,k)=>a+(H(k).mindMin||0),0);
+  return {v:Math.min(v,c.n),n:c.n,done:v>=c.n};
+}
+function reconcileEvent(){
+  if(!S) return; const wk=weekKey(today()), ev=evFor(wk); S.evDone=S.evDone||{}; S.evBadges=S.evBadges||[];
+  if(S.evSeen!==wk){ const first=!S.evSeen; S.evSeen=wk; note("event","New weekly event: "+ev.theme,(ev.tagline?ev.tagline+" ":"")+"Daily bonus tasks are live. Badge to earn: "+ev.badge.name+".","violet");
+    if(!first) setTimeout(()=>{ toast("New weekly event",ev.theme+" · Earn the "+ev.badge.name+" badge","violet","star"); glBlip(); },1400); }
+  if(!S.evDone[wk]&&evProgress(ev).done){ S.evDone[wk]=1; const x=gain(ev.challenge.xp); if(!S.evBadges.some(b=>b.id===ev.badge.id)) S.evBadges.push(Object.assign({week:wk,at:Date.now()},ev.badge));
+    note("event","Weekly challenge complete","+"+x+" XP and the "+ev.badge.name+" badge.","gold");
+    setTimeout(()=>{ fx.mode="burst"; sfx("level"); haptic(120); toast("Weekly challenge complete",ev.badge.name+" badge · +"+x+" XP","gold","trophy"); setTimeout(setScene,1500); },900); }
+}
+function evBadge(b,size,has){ return `<span class="ev-badge${has?"":" off"}" style="width:${size}px;height:${size}px"><img src="art/rank-frame.webp" alt="" style="filter:${EV_TINT[b.rar]||"none"}" onerror="this.remove()"><span class="ev-ico" style="color:${{common:"#e6ecff",rare:"#9fc4ff",epic:"#d2b8ff",legendary:"#ffd98a",mythic:"#ff9fb1"}[b.rar]||"#fff"}">${ico(b.icon,"","width:"+Math.round(size*.36)+"px;height:"+Math.round(size*.36)+"px")}</span></span>`; }
+function evToday(){ const ev=evNow(); const dow=(parseDay(today()).getDay()+6)%7; return {ev,task:ev.daily[dow],dow}; }
+function bonusDone(){ const h=S.history[today()]; return !!(h&&h.bonus); }
+function bonusCard(compact){
+  const {ev,task}=evToday(), done=bonusDone(), h=S.history[today()]||{};
+  return `<section class="card bonus${done?" done":""}"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><div class="label" style="color:var(--gold)">${ico("star","","width:13px;height:13px;vertical-align:-2px")} Bonus task · ${esc(ev.theme)}</div><span class="num small" style="color:var(--gold)">+${task.xp} XP</span></div>
+    <div style="display:flex;gap:12px;align-items:center;margin-top:8px"><div style="flex:1;font-weight:600">${esc(task.text)}</div>
+      ${done?`<span class="pill gold">${ico("check","","width:13px;height:13px")} Done</span>`:`<button class="btn gold sm" data-act="bonusdone">Done</button>`}</div>
+    ${compact?"":`<p class="tiny muted" style="margin:8px 0 0">Bonus tasks give extra XP. They don't count toward clearing the day or the friends ranking.</p>`}</section>`;
+}
+function evCard(){
+  const {ev}=evToday(), pr=evProgress(ev), has=(S.evBadges||[]).some(b=>b.id===ev.badge.id);
+  const end=addDay(ev.week,6), daysLeft=Math.max(0,Math.round((parseDay(end)-parseDay(today()))/864e5));
+  return `<section class="card event"><div style="display:flex;gap:14px;align-items:center">${evBadge(ev.badge,64,has)}<div style="flex:1;min-width:0"><div class="label" style="color:var(--violet-hi)">Weekly event · ${daysLeft} day${daysLeft===1?"":"s"} left</div><div style="font-family:var(--f-display);font-weight:700;font-size:19px">${esc(ev.theme)}</div>${ev.tagline?`<div class="tiny muted">${esc(ev.tagline)}</div>`:""}</div></div>
+    <div class="progress-line" style="margin-top:10px"><span>${esc(ev.challenge.text)}</span><span class="num">${fmt(pr.v)} / ${fmt(pr.n)}</span></div>
+    <div class="bar violet" style="margin-top:4px"><i style="width:${Math.round(pr.v/pr.n*100)}%"></i></div>
+    <div class="tiny" style="margin-top:6px;color:${has?"var(--green)":"var(--ink-2)"}">${has?"Badge earned: "+esc(ev.badge.name):"Reward: +"+ev.challenge.xp+" XP and the "+esc(ev.badge.name)+" badge"}</div></section>`;
+}
 // ================= ranked play =================
 // Ranking points (RP) only come from proof the server can check: a focus timer the server timed,
 // Health Connect steps/exercise, or a clean screen-time check after 9 PM. Ticking by hand still gives XP for your level.
@@ -2002,7 +2097,7 @@ function breathDone(){
   sfx("done"); toast("Mind gate cleared",b.mins+" min of breathing · +"+x+" XP · +"+b.mins*4+" MP","violet","moon"); commit();
 }
 // ================= phone tracking (Health Connect + screen time) =================
-window.__dbg={go:t=>go(t),arcMult:k=>arcMult(k),S:()=>S};
+window.__dbg={go:t=>go(t),arcMult:k=>arcMult(k),S:()=>S,evNow:()=>evNow(),evSanitize:(d,w)=>evSanitize(d,w)};
 window.__health=function(json){
   try{ const d=JSON.parse(json); if(!S||!d||d.error){ if(d&&d.error) ui.healthErr=d.error; return; }
     ui.healthAt=Date.now(); ui.healthData=d; const k=today(), h=rec(k), plan=planFor(k); h.prog=h.prog||{};
@@ -2285,6 +2380,7 @@ document.addEventListener("click",e=>{
     case "startmin": ui.startQ=null; closeOv(); completeQuest(id,null,{min:true}); break;
     case "startclose": ui.startQ=null; closeOv(); render(); break;
     case "nagtoggle": S.settings.nag=S.settings.nag===false; commit(); break;
+    case "bonusdone": { const k=today(), h=rec(k); if(h.bonus) break; const {ev,task}=evToday(); h.bonus={text:task.text,xp:task.xp,t:Date.now()}; const x=gain(task.xp); S.bonusCount=(S.bonusCount||0)+1; sfx("done"); haptic(40); toast("Bonus task","+"+x+" XP · "+task.text,"gold","star"); glBlip(); commit(); break; }
     case "duel": (async()=>{ try{ await rpc("ps_duel",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); toast("Duel sent","Most RP by Sunday night wins a chest","red","trophy"); glBlip(); netBoard(); }catch(e){ toast("Duel",netErr(e),"red","x"); } })(); break;
     case "cloudon": cloudEnable(); break;
     case "cloudoff": S.cloud.on=false; ui.showKey=false; commit(); toast("Cloud backup","Turned off. Your last online backup is kept.","","shield"); break;

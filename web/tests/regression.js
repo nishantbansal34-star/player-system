@@ -9,6 +9,7 @@ async function open(b,time,seed,opts={}){
   await p.clock.install({time});
   await p.addInitScript(({seed})=>{ if(!window.__mem) window.__mem={}; let st=localStorage.getItem('__t')||JSON.stringify(seed); window.__st=()=>JSON.parse(st);
     window.Android={load:()=>st,save:j=>{st=j;localStorage.setItem('__t',j)},vibrate:()=>{},versionCode:()=>8,listSnapshots:()=>'[]',readSnapshot:()=>st,exportBackup:()=>{},importBackup:()=>{},requestNotifications:()=>{},share:()=>{},scheduleRunEnd:()=>{},cancelRunEnd:()=>{},scheduleSessionEnd:t=>{window.__sessEnd=t},cancelSessionEnd:()=>{window.__sessEnd=null}}; },{seed});
+  await p.route('**/rest/v1/rpc/**',r=>r.abort());
   await p.goto(APP); await p.clock.runFor(2600);
   const st=()=>p.evaluate(()=>window.__st()); const close=async()=>{ for(let i=0;i<4;i++){ const o=await p.$('[data-act=lu-close]'); if(o){ await o.click({force:true}); await p.clock.runFor(300);} else break; } };
   return {ctx,p,errs,st,close};
@@ -233,6 +234,29 @@ async function open(b,time,seed,opts={}){
     ok('30 ranking: passing a friend shows an overtake alert and promotes to the next league',/passed Ravi/.test(toasts)&&s.league==='D',toasts+' league='+s.league);
     await p.$eval('[data-act=friend][data-id=f1]',e=>e.click()); await p.clock.runFor(300); await p.$eval('[data-act=duel]',e=>e.click()); await settle(p,()=>false);
     ok('31 duel: challenge button calls ps_duel for that friend',!!sent.find(x=>x[0]==='ps_duel'&&x[1].p_friend==='f1'));
+    await ctx.close(); }
+
+  // 32-34. Weekly events and bonus tasks
+  { const EV={theme:"Test Week",tagline:"t",color:"blue",daily:[{text:"A",xp:30},{text:"B",xp:30},{text:"Bonus C",xp:40},{text:"D",xp:30},{text:"E",xp:30},{text:"F",xp:30},{text:"G",xp:30}],challenge:{type:"clear_days",n:2,xp:150,text:"Clear 2 days"},badge:{id:"x",name:"Test Badge",icon:"bolt",rar:"epic",desc:"d"}};
+    const {ctx,p,st,close}=await open(b,T,baseSeed(T,{evCache:{'2026-10-26':EV},evSeen:'2026-10-26'}));
+    await p.click('[data-nav=quests]'); await p.clock.runFor(300); const txt=await p.textContent('main');
+    ok('32 bonus: today\'s bonus task from the weekly event is shown',/Bonus C/.test(txt)&&/\+40 XP/.test(txt));
+    await p.$eval('[data-act=bonusdone]',e=>e.click()); await p.clock.runFor(500); await close();
+    let s=await st(); ok('32 bonus: completing it gives extra XP once',s.totalXp===40&&s.history[K].bonus&&s.history[K].bonus.xp===40,'xp='+s.totalXp);
+    ok('32 bonus: it does not count toward clearing the day',!s.history[K].cleared&&Object.keys(s.history[K].q||{}).length===0);
+    ok('32 bonus: second tap does nothing',!(await p.$('[data-act=bonusdone]')));
+    await ctx.close(); }
+  { const EV={theme:"Test Week",tagline:"t",color:"blue",daily:[{text:"A",xp:30},{text:"B",xp:30},{text:"Bonus C",xp:40},{text:"D",xp:30},{text:"E",xp:30},{text:"F",xp:30},{text:"G",xp:30}],challenge:{type:"clear_days",n:2,xp:150,text:"Clear 2 days"},badge:{id:"x",name:"Test Badge",icon:"bolt",rar:"epic",desc:"d"}};
+    const hist={'2026-10-26':{q:{train:true},xp:50,cleared:true},'2026-10-27':{q:{train:true},xp:50,cleared:true}};
+    const {ctx,p,st,close}=await open(b,T,baseSeed(T,{evCache:{'2026-10-26':EV},evSeen:'2026-10-26',history:hist})); await p.clock.runFor(1500); await close();
+    const s=await st(); ok('33 weekly challenge: completing it awards XP and the badge',s.evDone&&s.evDone['2026-10-26']===1&&s.evBadges.length===1&&s.evBadges[0].id==='wk-2026-10-26'&&s.totalXp>=150,JSON.stringify({d:s.evDone,b:s.evBadges&&s.evBadges.length,x:s.totalXp}));
+    await p.click('[data-nav=inventory]'); await p.clock.runFor(200); await p.$eval('[data-act=invtab][data-t=badges]',e=>e.click()); await p.clock.runFor(300);
+    ok('33 weekly challenge: badge appears in the Badges tab',/Test Badge/.test(await p.textContent('main')));
+    await ctx.close(); }
+  { const {ctx,p}=await open(b,T,baseSeed(T));
+    const r=await p.evaluate(()=>{ const bad={theme:"X",daily:Array.from({length:7},(_,i)=>({text:"t"+i,xp:9999})),challenge:{type:"xp_week",n:99999,xp:99999,text:"c"},badge:{name:"N",icon:"<script>",rar:"godly"}}; const a=__dbg.evSanitize(bad,'2026-11-02'); const b=__dbg.evSanitize({daily:[1,2],challenge:{type:"hack"}},'2026-11-02'); const c=__dbg.evNow(); return {xp:a.daily[0].xp,cx:a.challenge.xp,cn:a.challenge.n,icon:a.badge.icon,rar:a.badge.rar,bad:b===null,fallback:!!(c&&c.daily.length===7&&c.badge)}; });
+    ok('34 events: server content is clamped and checked',r.xp===60&&r.cx===300&&r.cn===5000&&r.icon==='star'&&r.rar==='rare'&&r.bad,JSON.stringify(r));
+    ok('34 events: built-in rotation works offline',r.fallback);
     await ctx.close(); }
 
   await b.close();
