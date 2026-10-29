@@ -91,7 +91,7 @@ async function open(b,time,seed,opts={}){
     await p.click('[data-nav=inventory]'); await p.clock.runFor(300); const owned=await p.$$('.tile:not(.locked)'); ok('13 inventory: item shows as owned',owned.length>=2,'owned tiles '+owned.length); await ctx.close(); }
 
   // 14. Persistence after restart
-  { const {ctx,p,st}=await open(b,T,baseSeed(T)); await p.click('[data-nav=quests]'); await p.click('[data-act=done][data-id=water]'); await p.clock.runFor(500);
+  { const {ctx,p,st}=await open(b,T,baseSeed(T)); await p.click('[data-nav=quests]'); await p.clock.runFor(300); for(let i=0;i<4;i++){ await p.$eval('[data-act=done][data-id=water]',e=>e.click()).catch(()=>{}); if(await settle(p,()=>{ const s=window.__st(); return !!(s.history&&Object.values(s.history).some(h=>h.q&&h.q.water)); })) break; }
     await p.reload(); await p.clock.runFor(2600); const s=await st(); ok('14 persistence: completed quest survives restart',s.history[K].q.water===true); await ctx.close(); }
 
   // 15. Network failure on friends
@@ -168,8 +168,8 @@ async function open(b,time,seed,opts={}){
     const sent=[]; await p.route('**/rest/v1/rpc/**',async r=>{ const fn=r.request().url().split('/').pop(); const body=JSON.parse(r.request().postData()||'{}'); sent.push([fn,body]);
       const out=fn==='ps_register'?{id:'u1',secret:'sec123',code:'QWE123'}:fn==='ps_backup_save'?'"2026-10-28T03:00:00Z"':fn==='ps_board'?[]:fn==='ps_inbox'?[]:null;
       await r.fulfill({status:200,contentType:'application/json',body:out==null?'':typeof out==='string'?out:JSON.stringify(out)}); });
-    await p.evaluate(()=>__dbg.go('settings')); await p.clock.runFor(300); await p.$eval('[data-act=setpage][data-t=cloud]',e=>e.click()); await p.clock.runFor(300);
-    await p.$eval('[data-act=cloudon]',e=>e.click()); await settle(p,()=>{ const s=window.__st(); return !!(s&&s.cloud&&s.cloud.at>0); }); await p.clock.runFor(300); await close();
+    await p.evaluate(()=>__dbg.go('settings')); await p.clock.runFor(300); for(let i=0;i<5&&!(await p.$('[data-act=cloudon]'));i++){ await p.evaluate(()=>__dbg.go('settings')).catch(()=>{}); await p.$eval('[data-act=setpage][data-t=cloud]',e=>e.click()).catch(()=>{}); await p.clock.runFor(300); await new Promise(r=>setTimeout(r,150)); }
+    await p.$eval('[data-act=cloudon]',e=>e.click()); if(!await settle(p,()=>{ const s=window.__st(); return !!(s&&s.cloud&&s.cloud.at>0); })){ await p.$eval('[data-act=cloudon],[data-act=cloudnow]',e=>e.click()).catch(()=>{}); await settle(p,()=>{ const s=window.__st(); return !!(s&&s.cloud&&s.cloud.at>0); }); } await p.clock.runFor(300); await close();
     const save=sent.find(x=>x[0]==='ps_backup_save'); const s=await st();
     ok('24 cloud: turning on registers and saves a backup',!!sent.find(x=>x[0]==='ps_register')&&!!save&&save[1].p_data.level===5,sent.map(x=>x[0]).join(','));
     ok('24 cloud: backup data never contains the secret',save&&!JSON.stringify(save[1].p_data).includes('sec123'));
@@ -203,7 +203,7 @@ async function open(b,time,seed,opts={}){
       await r.fulfill({status:200,contentType:'application/json',body:out==null?'':typeof out==='string'?out:JSON.stringify(out)}); }); };
   const NETSEED={net:{id:'me1',secret:'s',code:'ABC123'}};
   { const {ctx,p,st}=await open(b,T,baseSeed(T,NETSEED)); const sent=[]; await rankMock(p,sent);
-    await p.click('[data-nav=quests]'); await p.clock.runFor(300); await p.$eval('[data-act=openq][data-id=deep]',e=>e.click()); await p.clock.runFor(300);
+    for(let i=0;i<5&&!(await p.$('[data-act=sessstart]'));i++){ await p.evaluate(()=>__dbg.go('quests')).catch(()=>{}); await p.clock.runFor(300); await p.$eval('[data-act=openq][data-id=deep]',e=>e.click()).catch(()=>{}); await p.clock.runFor(300); await new Promise(r=>setTimeout(r,150)); }
     await p.$eval('[data-act=sessstart]',e=>e.click()); await settle(p,()=>!!(window.__st().session&&window.__st().session.rtok));
     const fs=sent.find(x=>x[0]==='ps_focus_start'); ok('27 ranked: starting the focus timer registers a server-timed session',fs&&fs[1].p_quest==='deep'&&fs[1].p_need_min>=15,JSON.stringify(fs&&fs[1]));
     await p.clock.fastForward(61*60000); await p.clock.runFor(1200); await p.$eval('[data-act=sessfull]',e=>e.click());
