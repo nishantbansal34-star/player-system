@@ -22,13 +22,15 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--bg);color:var(--ink);height:100%}
+html,body{background:var(--bg);color:var(--ink);height:100%;overflow:hidden}
 body{font-family:var(--f-body);font-size:15px;line-height:1.45;overscroll-behavior:none}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer;background:none;border:0;padding:0}
 :focus-visible{outline:2px solid var(--glow-2);outline-offset:2px;border-radius:6px}
 #fx{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
-.app{position:relative;z-index:1;max-width:520px;margin:0 auto;padding:12px 16px calc(92px + env(safe-area-inset-bottom,0px));min-height:100%}
+/* The page itself never scrolls: #app is the scroll area, so the bottom bar and backgrounds stay locked in place. */
+.app{position:fixed;top:0;bottom:0;left:0;right:0;z-index:1;max-width:520px;margin:0 auto;padding:12px 16px calc(92px + env(safe-area-inset-bottom,0px));overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+.nav{transform:translateZ(0)}
 .ico{width:22px;height:22px;flex:none;display:block}
 
 /* top bar */
@@ -771,7 +773,7 @@ function startRun(id){
   S.keys--; const h=rec(today()); const aura=h.fx&&h.fx.aura&&!h.fx.auraUsed?h.fx.aura:0; if(aura){ h.fx.auraUsed=true; }
   S.run={id,startedAt:Date.now(),endsAt:Date.now()+d.mins*60000,aura,left:null};
   if(hasA("scheduleRunEnd")) Android.scheduleRunEnd(S.run.endsAt);
-  screen="run"; hist=[]; commit(); window.scrollTo(0,0);
+  screen="run"; hist=[]; commit(); scrollTop0();
 }
 function endRun(ok,reason){
   const r=S.run; if(!r) return; const d=DUNGEONS.find(x=>x.id===r.id); S.run=null; if(hasA("cancelRunEnd")) Android.cancelRunEnd();
@@ -1077,6 +1079,7 @@ async function boot(){
 }
 window.__imported=function(json){ try{ const d=JSON.parse(json); if(!d||!d.level) throw 0; S=migrate(d); processDays(); toast("Backup","Progress restored from file.","","check"); commit(); }catch(e){ toast("Backup","That file isn't a Player System backup.","red","x"); } };
 window.__exported=function(ok){ toast("Backup",ok?"Backup file saved.":"Backup not saved.",ok?"":"red",ok?"check":"x"); };
+function scrollTop0(){ const a=document.getElementById("app"); if(a) a.scrollTop=0; }
 const PRIVACY_URL="https://nishantbansal34-star.github.io/player-system/privacy.html";
 const DELETE_URL="https://nishantbansal34-star.github.io/player-system/delete-account.html";
 const PLAY_URL="https://play.google.com/store/apps/details?id=com.nishant.playersystem";
@@ -1135,7 +1138,7 @@ function tick(){
 function untilMidnight(){ const n=new Date(),m=new Date(n); m.setHours(dayStartH(),0,0,0); if(m<=n) m.setDate(m.getDate()+1); const s=Math.floor((m-n)/1000); return pad(Math.floor(s/3600))+":"+pad(Math.floor(s%3600/60))+":"+pad(s%60); }
 
 // ================= navigation =================
-function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); window.scrollTo(0,0); }
+function go(s){ if(s===screen) return; if(s==="settings") ui.setPage=null; if(s==="friends"){ ui.netErr=null; ui.friendSel=null; setTimeout(netBoard,50); } hist.push(screen); if(hist.length>20) hist.shift(); screen=s; closeOv(); render(); scrollTop0(); }
 function sceneFor(sc){ return {run:"vortex"}[sc]||"calm"; }
 function setScene(){ if(document.getElementById("splash")){ fx.mode="calm"; return; } fx.mode=S?sceneFor(screen):"calm"; fx.hue=["army","castle","skills","arc","breathe"].includes(screen)?"violet":"blue"; }
 function closeOv(){ document.getElementById("ov").innerHTML=""; setScene(); }
@@ -2359,7 +2362,7 @@ function render(){
 
 // ================= events =================
 document.addEventListener("click",e=>{
-  const nb=e.target.closest("[data-nav]"); if(nb){ const n=nb.dataset.nav; if(n==="menu") ovMenu(); else { hist=[]; screen=n; closeOv(); render(); window.scrollTo(0,0);} return; }
+  const nb=e.target.closest("[data-nav]"); if(nb){ const n=nb.dataset.nav; if(n==="menu") ovMenu(); else { hist=[]; screen=n; closeOv(); render(); scrollTop0();} return; }
   const b=e.target.closest("[data-act]"); if(!b||b.disabled) return;
   const a=b.dataset.act, id=b.dataset.id;
   if(a==="ov-bg"&&e.target!==b) return;
@@ -2380,7 +2383,7 @@ document.addEventListener("click",e=>{
     case "archard": ui.arcHard=!ui.arcHard; render(); break;
     case "arcstart": startArc(ui.arcHard); break;
     case "quizstart": ui.quizStep=0; ui.quizAns={}; go("quiz"); break;
-    case "quizpick": { ui.quizAns=ui.quizAns||{}; ui.quizAns[QUIZ[ui.quizStep||0].id]=Number(b.dataset.n); ui.quizStep=(ui.quizStep||0)+1; render(); window.scrollTo(0,0); break; }
+    case "quizpick": { ui.quizAns=ui.quizAns||{}; ui.quizAns[QUIZ[ui.quizStep||0].id]=Number(b.dataset.n); ui.quizStep=(ui.quizStep||0)+1; render(); scrollTop0(); break; }
     case "quizback": if(ui.quizStep>0&&ui.quizStep<=QUIZ.length){ ui.quizStep--; render(); } else { screen="home"; hist=[]; render(); } break;
     case "quizapply": { const r=quizResult(ui.quizAns||{}); S.settings.difficulty=r.diff; S.settings.qscale=r.qscale; S.settings.slots=Object.assign({},S.settings.slots,r.slots); S.quiz={answers:ui.quizAns,at:Date.now(),strengths:r.strengths,blind:r.blind};
       toast("Plan applied","Difficulty "+r.diff+" · targets and quest times updated","","target"); screen="home"; hist=[]; if(b.dataset.t==="arc"&&(!S.arc||S.arc.graduated)){ startArc(false); } else commit(); break; }
@@ -2424,7 +2427,7 @@ document.addEventListener("click",e=>{
     case "urgentdone": completeUrgent(); break;
     case "startrun": startRun(id); break;
     case "retreat": if(!ui.pendingRetreat){ ui.pendingRetreat=true; render(); break; } ui.pendingRetreat=false; endRun(false,"You retreated from the dungeon. The key is lost."); break;
-    case "setpage": ui.setPage=b.dataset.t; ui.editQ=null; render(); window.scrollTo(0,0); break;
+    case "setpage": ui.setPage=b.dataset.t; ui.editQ=null; render(); scrollTop0(); break;
     case "notes": go("notes"); break;
     case "done": completeQuest(id,b.dataset.back&&canBackfill()?addDay(today(),-1):null); break;
     case "qday": ui.qday=b.dataset.t; render(); break;
