@@ -384,6 +384,9 @@ body.splashing .app,body.splashing .nav{opacity:0}
 .breath-orb{width:240px;height:240px;border-radius:50%;background:radial-gradient(circle at 50% 40%,rgb(var(--violet-rgb) / .55),rgb(var(--blue-rgb) / .25) 60%,transparent 72%);box-shadow:0 0 60px rgb(var(--violet-rgb) / .45),inset 0 0 40px rgb(var(--blue-rgb) / .35);border:1.5px solid rgb(var(--violet-rgb) / .6);transition:transform 1s linear}
 .breath-txt{position:absolute;text-align:center}
 @media (prefers-reduced-motion:reduce){.breath-orb{transition:none}}
+/* ===== habit helpers ===== */
+.anc{color:var(--cyan);font-weight:600}
+.card.comeback{border-color:rgb(var(--gold-rgb) / .55);background:linear-gradient(150deg,rgb(var(--gold-rgb) / .14),transparent 65%)}
 /* ===== weekly events ===== */
 .ev-badge{position:relative;display:inline-grid;place-items:center;flex:none}
 .ev-badge>img{position:absolute;inset:-8%;width:116%;height:116%;object-fit:contain}
@@ -557,8 +560,16 @@ const BASE_QUESTS=[
 const CUSTOM_STYLE=[["star","#ff8ad8"],["bolt","#c3f25c"],["heart","#ffd166"],["target","#7afcff"]];
 const MAX_QUESTS=8;
 const REPO="nishantbansal34-star/player-system";
-function Q(){ return (S&&S.quests?S.quests:BASE_QUESTS).filter(q=>q.enabled!==false); }
-function clearAt(){ return Math.max(1,Math.ceil(Q().length*2/3)); }
+function QA(){ return (S&&S.quests?S.quests:BASE_QUESTS).filter(q=>q.enabled!==false); }
+// Gradual quests: start with a few, unlock one more after 5 cleared days, drop one after 2 missed days in a row.
+const RAMP_ORDER=["train","walk","deep","read","water","disc"], RAMP_MIN=3;
+function Q(){ const all=QA(); const r=S&&S.ramp; if(!r||!r.on||r.n>=all.length) return all;
+  const pri=q=>{ const i=RAMP_ORDER.indexOf(q.id); return i<0?99:i; };
+  const keep=new Set(all.slice().sort((a,b)=>pri(a)-pri(b)).slice(0,Math.max(1,r.n)).map(q=>q.id)); return all.filter(q=>keep.has(q.id)); }
+// Comeback day: the day after a missed day. Clear just 2 quests, earn double XP, and the streak comes back.
+function isMissDay(k){ const h=S.history[k]; return !!S.startDate&&k>S.startDate&&!(h&&(h.cleared||h.paused||h.frozen)); }
+function comebackDay(){ if(!S||S.pause) return false; const t=today(); return isMissDay(addDay(t,-1))&&!(S.history[t]&&S.history[t].comebackDone); }
+function clearAt(){ const n=Math.max(1,Math.ceil(Q().length*2/3)); return comebackDay()?Math.min(2,n):n; }
 function qById(id){ return (S&&S.quests||BASE_QUESTS).find(q=>q.id===id); }
 const hasA=f=>!!(window.Android&&typeof window.Android[f]==="function");
 const RANKS=[
@@ -861,7 +872,7 @@ function migrate(d){
     if(!Array.isArray(m.quests)||!m.quests.length) m.quests=JSON.parse(JSON.stringify(BASE_QUESTS));
     if(!m.totalXp) m.totalXp=Object.values(m.history||{}).reduce((a,h)=>a+((h&&h.xp)||0),0);
     ["weekly","archive","skills","urgent"].forEach(k=>{ if(!m[k]||typeof m[k]!=="object") m[k]={}; }); if(!Array.isArray(m.body)) m.body=[];
-    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(!m.settings.slots) m.settings.slots=fresh().settings.slots; if(m.settings.nag==null) m.settings.nag=true; if(!m.settings.qscale) m.settings.qscale={}; if(!m.seasonDone) m.seasonDone={}; if(m.settings.sound==null) m.settings.sound=true; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
+    if(!m.castle||typeof m.castle!=="object") m.castle={floor:0}; if(!m.settings.slots) m.settings.slots=fresh().settings.slots; if(m.settings.nag==null) m.settings.nag=true; if(!m.ramp&&!m.rampOffered){ m.rampOffered=true; m.ramp={on:true,n:3,clean:0,miss:0,checked:null}; } if(!m.settings.anchors) m.settings.anchors={}; if(!m.settings.qscale) m.settings.qscale={}; if(!m.seasonDone) m.seasonDone={}; if(m.settings.sound==null) m.settings.sound=true; if(m.mp==null) m.mp=100; if(m.keys==null) m.keys=1;
     return m; }
   ["name","startDate","lastSeen","level","xp","gold","potions","streak","bestStreak","totalDays","rewards","statPoints"].forEach(k=>{ if(d[k]!=null) s[k]=d[k]; });
   if(d.stats){ s.stats={STR:d.stats.STR||10,VIT:d.stats.VIT||10,INT:d.stats.INT||10,AGI:d.stats.AGI||10,FOC:d.stats.PER||10,DIS:10}; }
@@ -873,11 +884,12 @@ function effStats(){ const e=Object.assign({},S.stats); S.items.forEach(k=>{ con
 function habitDone(h,id){ if(!h) return false; return id==="daily"?!!h.cleared:!!(h.q&&h.q[id]); }
 function habitStreak(id){ let k=today(), n=0; if(!habitDone(S.history[k],id)) k=addDay(k,-1); while(habitDone(S.history[k],id)){ n++; k=addDay(k,-1); } return n; }
 function activeShadows(){ return S.shadows.filter(sh=>habitStreak(sh.habit)>0).length; }
-function mult(){ let m=1+Math.min(.30,activeShadows()*.03); const h=S.history[today()]; if(S.penalty&&!(h&&h.fx&&h.fx.authority)) m*=.5; return m; }
+function mult(){ let m=1+Math.min(.30,activeShadows()*.03); const h=S.history[today()]; if(comebackDay()) return m*2; if(S.penalty&&!(h&&h.fx&&h.fx.authority)) m*=.5; return m; }
 
 // ---- quest plan ----
 function splitFor(dow){ const rest=S.settings.restDay; if(dow===rest) return "Mobility"; return SPLITS[(dow-rest-1+7)%7]; }
-function planFor(k){
+function planFor(k){ const a=(S.settings&&S.settings.anchors)||{}; return planFor0(k).map(q=>{ if(a[q.id]) q.anchor=a[q.id]; return q; }); }
+function planFor0(k){
   const dow=parseDay(k).getDay(), tier=tierOf(S.level), trial=S.jobTrial===k, dm=DIFF[S.settings.difficulty]||1, m0=dm*(trial?1.5:1);
   const r=(v,step)=>Math.max(step,Math.round(v/step)*step);
   const split=splitFor(dow);
@@ -904,7 +916,7 @@ function planFor(k){
     return Object.assign({},q,{detail,drills:q.id==="train"?drills:null,split,mins:q.id==="deep"?deep:q.id==="train"?mins:null,target:T?T[0]:null,unit:T?T[1]:null,minTarget:T?T[2]:null});
   });
 }
-function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.id==="train"&&q.name==="Physical Training"?"Training":q.name,detail:q.detail,xp:q.xp,icon:q.icon})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
+function widgetPlan(){ const out=[]; const base=today(); const dows={}; for(let i=0;i<7;i++){ const k=addDay(base,i); dows[parseDay(k).getDay()]=planFor(k).map(q=>({id:q.id,name:q.id==="train"&&q.name==="Physical Training"?"Training":q.name,detail:q.detail,xp:q.xp,icon:q.icon,anchor:q.anchor||""})); } for(let d=0;d<7;d++) out.push(dows[d]); return out; }
 
 // ---- notes / log / toast ----
 function note(type,title,body,kind){ S.notes.unshift({t:Date.now(),type,title,body,kind:kind||""}); if(S.notes.length>50) S.notes.length=50; }
@@ -1043,7 +1055,7 @@ function reconcile(){
   const t=today(), wk=weekKey(t); let c=0; for(let i=0;i<7;i++){ const k=addDay(wk,i); if(S.history[k]&&S.history[k].cleared) c++; }
   if(c>=5 && !S.weekly[wk]){ S.weekly[wk]=true; const x=gain(100,t); S.gold+=150; S.bonusLoot=(S.bonusLoot||0)+1;
     note("loot","Weekly Dungeon cleared","+"+x+" XP, +150 G and a dungeon chest.","gold"); setTimeout(()=>toast("Weekly Dungeon cleared","+"+x+" XP · +150 G · dungeon chest","gold","shield"),800); }
-  reconcileCastle(); urgentSweep(); reconcileArc(); reconcileSeason(); reconcileEvent();
+  reconcileCastle(); urgentSweep(); reconcileArc(); reconcileSeason(); reconcileEvent(); reconcileRamp(); reconcileComeback();
   checkAch();
 }
 // ================= persistence =================
@@ -1165,7 +1177,7 @@ function penaltyCard(){
   const running=ui.plankEnd&&Date.now()<ui.plankEnd, left=ui.plankEnd?Math.max(0,Math.ceil((ui.plankEnd-Date.now())/1000)):60;
   return `<section class="card red"><div class="label" style="color:var(--red-hi)">Penalty quest</div>
     <h3 style="margin:6px 0 4px;font-family:var(--f-ui);letter-spacing:.06em">Survive the Penalty Zone</h3>
-    <p class="small" style="margin:0;color:#ffc9d1">You missed a daily quest. Until you survive this, you carry <b>Weakened</b>: all XP is halved.</p>
+    <p class="small" style="margin:0;color:#ffc9d1">${comebackDay()?"Weakened is on hold today: the comeback bonus wins. Clear 2 quests to lift the penalty, or survive it here.":"You missed a daily quest. Until you survive this, you carry <b>Weakened</b>: all XP is halved."}</p>
     <p style="margin:10px 0 0">Do <b>20 squats</b>, then hold a <b>1-minute plank</b>.</p>
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;align-items:center">
       ${!ui.plankEnd?`<button class="btn red sm" data-act="plank">Start plank timer</button>`:`<span class="num" style="font-size:22px;color:#fff" id="pclock">0:${pad(left)}</span><button class="btn red sm" id="psurv" data-act="survive" ${left===0?"":"disabled"}>I survived</button>`}
@@ -1188,7 +1200,9 @@ function vHome(){
     ${updateCard()}
     ${S.session?`<section class="card hot" data-act="go" data-to="session" role="button" tabindex="0" style="display:flex;gap:12px;align-items:center">${ico("bolt","","color:var(--cyan);width:26px;height:26px")}<div style="flex:1"><div class="label" style="color:var(--cyan)">Session in progress</div><div class="small">${S.session.id==="train"?"Physical training":"Deep work"} · tap to return</div></div></section>`:""}
     ${urgentCard()}
+    ${comebackCard()}
     ${penaltyCard()}
+    ${anchorCard()}
     <section class="card boss-card${b.down?" down":hr>=18?" rage":""}" style="padding:0;overflow:hidden">
       <div style="display:flex;gap:14px;padding:14px">
         <div class="boss-thumb artslot">${bossArt(bname)}<img src="${bossSrc(bname)}" alt="" onerror="this.remove()"></div>
@@ -1199,7 +1213,7 @@ function vHome(){
       <button class="btn ghost wide" style="border-radius:0;border-width:1px 0 0;min-height:var(--h-btn)" data-act="go" data-to="boss">${b.down?"View victory":"View encounter"}</button>
     </section>
     ${nu&&!S.pause?`<section class="card hot rec-card"><div class="label" style="color:var(--cyan)">System recommendation${slotOf(nu.id)?" · planned "+slotOf(nu.id):""}</div>
-      <div style="display:flex;gap:12px;align-items:center;margin:8px 0 12px"><div class="qicon" style="color:${nu.c}">${ico(nu.icon)}</div><div style="flex:1;min-width:0"><div class="qname">${esc(nu.name)}</div><div class="small muted">${esc(nu.detail)}</div></div><div class="qxp" style="font-size:15px">+${Math.round(nu.xp*mult()*hasteAt()*comboMult())} XP</div></div>
+      <div style="display:flex;gap:12px;align-items:center;margin:8px 0 12px"><div class="qicon" style="color:${nu.c}">${ico(nu.icon)}</div><div style="flex:1;min-width:0"><div class="qname">${esc(nu.name)}</div><div class="small muted">${nu.anchor?`<span class="anc">${esc(nu.anchor)} →</span> `:""}${esc(nu.detail)}</div></div><div class="qxp" style="font-size:15px">+${Math.round(nu.xp*mult()*hasteAt()*comboMult())} XP</div></div>
       <button class="btn wide" data-act="openq" data-id="${nu.id}">${ico("bolt")}Begin mission</button>
       <div class="form-row" style="justify-content:space-between;margin-top:8px"><button class="minbtn" style="margin:0;min-height:44px" data-act="start2" data-id="${nu.id}">Not feeling it? Start 2 minutes</button>${minsUsed(h)<MAX_MIN?`<button class="minbtn" style="margin:0;min-height:44px" data-act="donemin" data-id="${nu.id}">Do the minimum</button>`:""}</div>
       ${motivationChips()}</section>`:""}
@@ -1265,6 +1279,7 @@ function vQuests(){
   ${S.pause?`<section class="card violet" style="display:flex;gap:12px;align-items:center">${ico("moon","","color:#c8a9ff")}<div style="flex:1"><div class="label" style="color:var(--violet-hi)">Pause mode</div><div class="small">No penalties while paused. Quests you do still count.</div></div><button class="btn violet sm" data-act="unpause">Resume</button></section>`:""}
   ${back?"":motivationChips()}
   ${back?"":urgentCard()}
+  ${back?"":comebackCard()}
   ${back?"":penaltyCard()}
   <div class="tiny muted" style="margin:-4px 2px 0">${back?"Tap a quest to log it for yesterday.":"Tap a quest to start it. Tap the circle if it's already done."}${!back&&rankedOn()?" Ticking by hand gives XP but no ranking points: use the timer, Health Connect or the screen-time check to rank.":""}</div>
   ${plan.map(q=>{ const d=!!h.q[q.id], mn=!!(h.min&&h.min[q.id]), prog=(h.prog||{})[q.id]||0, live=S.session&&S.session.id===q.id&&!back;
@@ -1273,7 +1288,7 @@ function vQuests(){
     return `<section class="card quest${d?" done":""}${mn?" min":""}">
       <button class="qhit" data-act="openq" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?esc(q.name)+": completed":"Open "+esc(q.name)}"></button>
       <div class="qicon" style="color:${q.c}">${ico(q.icon)}</div>
-      <div style="min-width:0"><div class="qname">${esc(q.name)}${slotOf(q.id)&&!back?`<span class="slot">${slotOf(q.id)}</span>`:""}</div><div class="qdetail">${esc(q.detail)}</div>
+      <div style="min-width:0"><div class="qname">${esc(q.name)}${slotOf(q.id)&&!back?`<span class="slot">${slotOf(q.id)}</span>`:""}</div><div class="qdetail">${q.anchor&&!back?`<span class="anc">${esc(q.anchor)} →</span> `:""}${esc(q.detail)}</div>
         <div class="qstat" style="color:${st[1]}">${st[2]?ico(st[2],"","width:12px;height:12px"):""}${st[0]}${!back&&rankedOn()&&isRanked(q)?((h.rk||{})[q.id]?`<span class="rk-chip on">${ico("trophy","","width:11px;height:11px")}+${(h.rk||{})[q.id]} RP</span>`:`<span class="rk-chip">${d?"UNRANKED":"RANKED"}</span>`):""}</div></div>
       <div class="qxp">+${Math.round(q.xp*mult()*(back||d?1:hasteAt()*comboMult()))} XP</div>
       <button class="qcheck" data-act="${d?"":"done"}" data-id="${q.id}" ${back?'data-back="1"':""} aria-label="${d?"Completed":"Mark "+esc(q.name)+" done"}" ${d?"disabled":""}>${ico("check")}</button>
@@ -1489,6 +1504,7 @@ function vSettingsFull(){
   <section class="card stack" data-sec="profile">
     <div class="field"><label class="label" for="setName">Player name</label><input id="setName" value="${esc(S.name)}" maxlength="24"></div></section>
   <section class="card stack" data-sec="game">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Gradual quests</div><div class="tiny muted">${S.ramp&&S.ramp.on?"Active: "+Q().length+" of "+QA().length+" quests. Clear 5 days to unlock the next; 2 missed days in a row removes one.":"All "+QA().length+" quests every day."}</div></div><button class="toggle ${S.ramp&&S.ramp.on?"on":""}" data-act="ramptoggle" aria-label="Gradual quests"></button></div>
     <div class="field"><span class="label">Difficulty</span><div class="seg">${["easy","normal","hard"].map(d=>`<button class="${st.difficulty===d?"on":""}" data-act="diff" data-t="${d}">${d}</button>`).join("")}</div>
       <span class="tiny muted">Easy trims every target by a quarter. Hard adds a quarter and moves the social-media cutoff to 10 PM.</span></div>
     <div class="field"><label class="label" for="setDay">Day resets at</label><select id="setDay">${[0,1,2,3,4].map(h=>`<option value="${h}" ${st.dayStart===h?"selected":""}>${h===0?"12:00 AM (midnight)":h+":00 AM"}</option>`).join("")}</select>
@@ -1504,7 +1520,9 @@ function vSettingsFull(){
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Screen-time check</div><div class="tiny muted">Lets the Discipline quest see how long you used Instagram, YouTube, Facebook, X, Snapchat and Reddit after the cutoff. Status: ${hasA("usageStatus")?esc(Android.usageStatus()==="ok"?"connected":"permission needed"):"unavailable"}</div></div><button class="toggle ${S.settings.usage?"on":""}" data-act="usagetoggle" aria-label="Screen-time check"></button></div>
     <p class="tiny muted" style="margin:0">Everything is read on this phone only. Nothing is uploaded.</p>
   </section>
-  <section class="card stack" data-sec="times"><p class="small muted" style="margin:0">Give each quest a time. Your phone reminds you then ("Start now for ×1.5 XP"), and Next Up follows this order. Leave a time empty to skip its reminder.</p>
+  <section class="card stack" data-sec="times"><div class="label">Link each quest to your routine</div><p class="small muted" style="margin:0">Pick something you already do every day. The quest shows "After … →" and its reminder says it too.</p>
+    ${QA().map(q=>`<div class="field"><label class="tiny" for="anchor_${q.id}" style="color:${q.c}">${esc(q.name)}</label><input id="anchor_${q.id}" maxlength="40" list="ai_${q.id}" placeholder="e.g. ${esc((ANCHOR_IDEAS[q.id]||["After lunch"])[0])}" value="${esc((S.settings.anchors||{})[q.id]||"")}"><datalist id="ai_${q.id}">${(ANCHOR_IDEAS[q.id]||[]).map(x=>`<option value="${esc(x)}">`).join("")}</datalist></div>`).join("")}
+    <p class="small muted" style="margin:8px 0 0">Give each quest a time. Your phone reminds you then ("Start now for ×1.5 XP"), and Next Up follows this order. Leave a time empty to skip its reminder.</p>
     ${Q().map(q=>`<div class="lrow"><span style="color:${q.c}">${ico(q.icon)}</span><span class="grow">${esc(q.name)}</span><input type="time" id="slot_${q.id}" value="${esc(slotOf(q.id))}" style="background:rgb(var(--bg-rgb) / .8);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--ink)"></div>`).join("")}
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:6px"><div><div class="label">Extra reminders when behind</div><div class="tiny muted">1 PM, 5 PM, your evening time and 10:30 PM, only if you haven't cleared yet.</div></div><button class="toggle ${S.settings.nag!==false?"on":""}" data-act="nagtoggle" aria-label="Extra reminders"></button></div>
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><div class="label">Sound effects</div><div class="tiny muted">System chimes, combo and boss sounds.</div></div><button class="toggle ${S.settings.sound!==false?"on":""}" data-act="soundtoggle" aria-label="Sound effects"></button></div>
@@ -2150,6 +2168,42 @@ function socialAfterCutoff(){
   const day0=new Date(base); day0.setHours(dayStartH(),0,0,0);
   try{ const all=JSON.parse(Android.socialMinutes(day0.getTime(),Date.now())); const after=Date.now()>from.getTime()?JSON.parse(Android.socialMinutes(from.getTime(),Date.now())):{total:0,apps:{}}; return {all,after,cutoff:late}; }catch(e){ return null; }
 }
+function reconcileRamp(){
+  const r=S.ramp; if(!r||!r.on) return; const t=today(), y=addDay(t,-1), all=QA().length;
+  let d=r.checked?addDay(r.checked,1):y; if(d<addDay(t,-30)) d=addDay(t,-30);
+  for(;d<=y;d=addDay(d,1)){ const h=S.history[d];
+    if(h&&h.cleared){ r.clean=(r.clean||0)+1; r.miss=0;
+      if(r.clean>=5&&r.n<all){ r.n++; r.clean=0; const added=Q().find(q=>!(r.lastIds||[]).includes(q.id)); const nm=added?added.name:"a new quest";
+        note("quest","New quest unlocked",nm+" joins your daily quests. You now have "+r.n+" of "+all+".","gold"); setTimeout(()=>{ toast("Quest unlocked",nm+" · "+r.n+" daily quests now","gold","bolt"); glBlip(); },1200); } }
+    else if(isMissDay(d)){ r.miss=(r.miss||0)+1; r.clean=0;
+      if(r.miss>=2&&r.n>RAMP_MIN){ r.n--; r.miss=0; note("quest","Quest load lightened","Two missed days in a row, so today has one quest fewer. Clear 5 days to earn it back.","violet"); } }
+    r.checked=d; }
+  r.lastIds=Q().map(q=>q.id);
+}
+function reconcileComeback(){
+  const t=today(), h=S.history[t]; if(!h||!h.cleared||h.comebackDone) return; if(!comebackDay()) return;
+  h.comebackDone=true; const back=S.penalty&&!S.penalty.multi?(S.penalty.prevStreak||0):0;
+  if(back>0) S.streak=Math.max(S.streak,back+1);
+  if(S.penalty){ S.penalty=null; ui.plankEnd=null; }
+  note("quest","Comeback complete",back>0?"Penalty lifted and your streak is back: "+S.streak+" days.":"Penalty lifted. You're back in the game.","gold");
+  setTimeout(()=>{ fx.mode="burst"; sfx("level"); haptic(120); toast("Comeback complete",back>0?"Streak restored · "+S.streak+" days":"Penalty lifted","gold","flame"); setTimeout(setScene,1500); },700);
+}
+function comebackCard(){
+  if(!comebackDay()) return ""; const h=S.history[today()]||{q:{}}, n=doneCount(h);
+  return `<section class="card comeback"><div class="label" style="color:var(--gold)">${ico("flame","","width:14px;height:14px;vertical-align:-2px")} Comeback day</div>
+    <div style="font-family:var(--f-display);font-weight:700;font-size:19px;margin:4px 0">Clear just 2 quests</div>
+    <div class="small">Yesterday slipped. Today every quest gives <b>double XP</b>, and clearing 2 lifts the penalty${S.penalty&&!S.penalty.multi&&S.penalty.prevStreak?" and brings back your "+S.penalty.prevStreak+"-day streak":""}.</div>
+    <div class="bar" style="margin-top:10px"><i style="width:${Math.min(100,n/2*100)}%;background:linear-gradient(90deg,var(--gold),#ffe29a)"></i></div><div class="tiny muted" style="margin-top:4px">${Math.min(n,2)} / 2 done</div></section>`;
+}
+function anchorCard(){
+  const a=S.settings.anchors||{}; if(Object.keys(a).some(k=>a[k])||ui.anchorHide) return "";
+  return `<section class="card" style="display:flex;gap:12px;align-items:center"><span style="color:var(--cyan)">${ico("target","","width:26px;height:26px")}</span><div style="flex:1;min-width:0" data-act="anchorsetup" role="button" tabindex="0"><div class="label" style="color:var(--cyan)">Link quests to your day</div><div class="small">"After my morning tea → Training." Habits stick better when they follow something you already do.</div></div><button class="iconbtn sm" data-act="anchorhide" aria-label="Hide">${ico("x","","width:16px;height:16px")}</button></section>`;
+}
+const ANCHOR_IDEAS={train:["After waking up","After my morning tea","After brushing my teeth"],walk:["After lunch","After dinner","After closing the shop"],read:["Before bed","After dinner","With my morning tea"],deep:["After reaching the shop","After breakfast","After my afternoon tea"],water:["With every meal","When I sit at my desk"],disc:["When I get into bed","After dinner"]};
+// Opened from a reminder: jump straight into a 2-minute start.
+window.__startQuest=function(id){ if(!S) return; const t=today(), h=S.history[t]||{q:{}}, plan=planFor(t).filter(q=>!h.q[q.id]); if(!plan.length){ toast("System","All of today's quests are done.","","check"); return; }
+  let q=plan.find(x=>x.id===id); if(!q) q=plan.slice().sort((a,b)=>a.xp-b.xp)[0];
+  screen="home"; hist=[]; render(); setTimeout(()=>ovStart(q.id),350); };
 function urgentCard(){
   const u=urgentNow(); if(!u) return "";
   const left=Math.max(0,u.at+u.dur-Date.now()); const m=Math.floor(left/60000), sec=Math.floor(left%60000/1000);
@@ -2412,6 +2466,9 @@ document.addEventListener("click",e=>{
     case "startmin": ui.startQ=null; closeOv(); completeQuest(id,null,{min:true}); break;
     case "startclose": ui.startQ=null; closeOv(); render(); break;
     case "nagtoggle": S.settings.nag=S.settings.nag===false; commit(); break;
+    case "ramptoggle": if(S.ramp&&S.ramp.on){ S.ramp.on=false; } else { S.ramp={on:true,n:Math.max(RAMP_MIN,Math.min(QA().length,S.ramp&&S.ramp.n||RAMP_MIN)),clean:0,miss:0,checked:addDay(today(),-1)}; } commit(); break;
+    case "anchorsetup": go("settings"); ui.setPage="times"; render(); break;
+    case "anchorhide": ui.anchorHide=true; render(); break;
     case "bonusdone": { const k=today(), h=rec(k); if(h.bonus) break; const {ev,task}=evToday(); h.bonus={text:task.text,xp:task.xp,t:Date.now()}; const x=gain(task.xp); S.bonusCount=(S.bonusCount||0)+1; sfx("done"); haptic(40); toast("Bonus task","+"+x+" XP · "+task.text,"gold","star"); glBlip(); commit(); break; }
     case "duel": (async()=>{ try{ await rpc("ps_duel",{p_id:S.net.id,p_secret:S.net.secret,p_friend:id}); toast("Duel sent","Most RP by Sunday night wins a chest","red","trophy"); glBlip(); netBoard(); }catch(e){ toast("Duel",netErr(e),"red","x"); } })(); break;
     case "cloudon": cloudEnable(); break;
@@ -2483,6 +2540,7 @@ document.addEventListener("change",e=>{
   if(!S) return;
   if(e.target.id==="setName"){ S.name=e.target.value.trim()||"Player"; commit(); }
   if(e.target.id==="setRest"){ S.settings.restDay=Number(e.target.value); commit(); }
+  if(e.target.id&&e.target.id.startsWith("anchor_")){ S.settings.anchors=S.settings.anchors||{}; S.settings.anchors[e.target.id.slice(7)]=e.target.value.trim().slice(0,40); commit(); }
   if(e.target.id&&e.target.id.startsWith("slot_")){ S.settings.slots=S.settings.slots||{}; S.settings.slots[e.target.id.slice(5)]=e.target.value||""; commit(); }
   if(e.target.id==="invFilter"){ ui.invFilter=e.target.value; render(); return; }
   if(e.target.id==="invSort"){ ui.invSort=e.target.value; render(); return; }

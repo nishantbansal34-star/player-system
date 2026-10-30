@@ -116,8 +116,10 @@ object Reminders {
                 val time = try { LocalTime.parse(hhmm) } catch (e: Exception) { continue }
                 if (kotlin.math.abs(java.time.Duration.between(time, nowHm).toMinutes()) <= 15) {
                     val h = Logic.haste(s)
-                    post(context, "plan", "Planned quests", 5, "[System] It's time: ${item.optString("name")}",
-                        item.optString("detail") + (if (h > 1) ". Start now for ×$h XP." else ". Start now and keep your streak alive."))
+                    val anchor = item.optString("anchor", "")
+                    val title = if (anchor.isNotEmpty()) "[System] $anchor → ${item.optString("name")}" else "[System] It's time: ${item.optString("name")}"
+                    post(context, "plan", "Planned quests", 5, title,
+                        item.optString("detail") + (if (h > 1) ". Tap to start for just 2 minutes · ×$h XP." else ". Tap to start for just 2 minutes."), id)
                     return
                 }
             }
@@ -153,21 +155,23 @@ object Reminders {
                 else -> "[System] FINAL WARNING: penalty incoming"
             }
             body = when {
-                hr < 15 -> "Do one now while XP is still boosted. Tap Start 2 minutes."
+                hr < 15 -> "Do one now while XP is still boosted. Tap here to start the easiest one for 2 minutes."
                 hr < 20 -> "Complete $left more before the day resets, or face the Penalty Zone. Streak: $streak days."
                 hr < 22 -> "$left quest${if (left > 1) "s" else ""} between you and a ${streak}-day streak. Use a minimum version if you're tired."
                 else -> "Less than 2 hours. Do $left minimum version${if (left > 1) "s" else ""} now to save your ${streak}-day streak."
             }
         }
-        post(context, CHANNEL, "Daily quests", if (kind == "am") 1 else 2, title, body)
+        post(context, CHANNEL, "Daily quests", if (kind == "am") 1 else 2, title, body, if (kind == "am") null else "easy")
     }
 
-    private fun post(context: Context, channel: String, channelName: String, id: Int, title: String, body: String) {
+    private fun post(context: Context, channel: String, channelName: String, id: Int, title: String, body: String, start: String? = null) {
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val importance = if (channel == CHANNEL) NotificationManager.IMPORTANCE_DEFAULT else NotificationManager.IMPORTANCE_HIGH
         nm.createNotificationChannel(NotificationChannel(channel, channelName, importance))
+        val launch = Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        if (start != null) launch.putExtra("start", start)
         val open = PendingIntent.getActivity(
-            context, 3, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP),
+            context, 30 + id, launch,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
         val n = Notification.Builder(context, channel)

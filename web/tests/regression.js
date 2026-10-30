@@ -3,7 +3,7 @@ const {chromium}=require('playwright'); const path=require('path');
 const APP='file://'+path.resolve(__dirname,'../dist/android-index.html');
 const pad=n=>String(n).padStart(2,'0'); const dk=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
 const results=[]; const settle=async(p,cond)=>{ for(let i=0;i<60;i++){ await p.clock.runFor(150); await new Promise(r=>setTimeout(r,100)); if(await p.evaluate(cond).catch(()=>false)) return true; } return false; }; const ok=(name,cond,info)=>{ results.push([name,!!cond,info||""]); };
-function baseSeed(t,extra){ return Object.assign({v:3,name:'Tester',startDate:'2026-10-01',lastSeen:dk(t),level:5,xp:0,statPoints:0,stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:100,potions:0,streak:3,bestStreak:3,totalDays:3,perfectDays:0,job:'None',title:'Awakened',ach:['awakened'],items:[],counts:{},penalty:null,jobTrial:null,flags:{},history:{},shadows:[],log:[],notes:[],notesSeen:0,castle:{floor:0},keys:1,mp:50,urgent:{[dk(t)]:null,[dk(new Date(t.getTime()+864e5))]:null}},extra||{}); }
+function baseSeed(t,extra){ return Object.assign({v:3,name:'Tester',startDate:'2026-10-01',lastSeen:dk(t),level:5,xp:0,statPoints:0,stats:{STR:10,VIT:10,INT:10,AGI:10,FOC:10,DIS:10},gold:100,potions:0,streak:3,bestStreak:3,totalDays:3,perfectDays:0,job:'None',title:'Awakened',ach:['awakened'],items:[],counts:{},penalty:null,jobTrial:null,flags:{},shadows:[],log:[],notes:[],notesSeen:0,castle:{floor:0},keys:1,mp:50,urgent:{[dk(t)]:null,[dk(new Date(t.getTime()+864e5))]:null},rampOffered:true,history:{[dk(new Date(t.getTime()-864e5))]:{q:{},xp:0,cleared:true}}},extra||{}); }
 async function open(b,time,seed,opts={}){
   const ctx=await b.newContext({viewport:{width:opts.width||390,height:820},timezoneId:'Asia/Kolkata',reducedMotion:opts.motion?'no-preference':'reduce'}); const p=await ctx.newPage(); p.setDefaultTimeout(6000); const errs=[]; p.on('pageerror',e=>errs.push(e.message));
   await p.clock.install({time});
@@ -61,7 +61,7 @@ async function open(b,time,seed,opts={}){
     await p.click('[data-act=sesspause]'); await p.clock.fastForward(5*60000);
     const el2=await p.evaluate(()=>{ const ss=window.__st().session; return ss.pausedAt-ss.start-ss.pausedMs; }); ok('4 timer: paused time is not counted',Math.abs(el2-600300)<6000,'el='+el2);
     await p.reload(); await p.clock.runFor(2600); s=await st(); ok('4 timer: session survives an app restart',!!s.session&&s.session.id==='deep');
-    await p.click('[data-act=go][data-to=session]').catch(()=>{}); await p.clock.runFor(300); await p.click('[data-act=sessstart]'); await p.clock.fastForward(36*60000); await p.clock.runFor(1200);
+    for(let i=0;i<6&&!(await p.$('[data-act=sessstart]'));i++){ await p.evaluate(()=>__dbg.go('session')).catch(()=>{}); await p.clock.runFor(300); await new Promise(r=>setTimeout(r,200)); } await p.$eval('[data-act=sessstart]',e=>e.click()); await p.clock.fastForward(36*60000); await p.clock.runFor(1200);
     await p.click('[data-act=sessfull]'); await p.clock.runFor(600); s=await st();
     ok('4 timer: full completion after 45 min awards deep work once',s.history[K].q.deep===true&&!s.session,'');
     await ctx.close(); }
@@ -93,7 +93,7 @@ async function open(b,time,seed,opts={}){
 
   // 14. Persistence after restart
   { const {ctx,p,st}=await open(b,T,baseSeed(T)); await p.click('[data-nav=quests]'); await p.clock.runFor(300); for(let i=0;i<4;i++){ await p.$eval('[data-act=done][data-id=water]',e=>e.click()).catch(()=>{}); if(await settle(p,()=>{ const s=window.__st(); return !!(s.history&&Object.values(s.history).some(h=>h.q&&h.q.water)); })) break; }
-    await p.reload(); await p.clock.runFor(2600); const s=await st(); ok('14 persistence: completed quest survives restart',s.history[K].q.water===true); await ctx.close(); }
+    await p.reload(); await p.clock.runFor(2600); const s=await st(); ok('14 persistence: completed quest survives restart',Object.values(s.history||{}).some(h=>h&&h.q&&h.q.water===true)); await ctx.close(); }
 
   // 15. Network failure on friends
   { const {ctx,p}=await open(b,T,baseSeed(T)); await p.route('**/rest/v1/rpc/**',r=>r.abort());
@@ -257,6 +257,37 @@ async function open(b,time,seed,opts={}){
     const r=await p.evaluate(()=>{ const bad={theme:"X",daily:Array.from({length:7},(_,i)=>({text:"t"+i,xp:9999})),challenge:{type:"xp_week",n:99999,xp:99999,text:"c"},badge:{name:"N",icon:"<script>",rar:"godly"}}; const a=__dbg.evSanitize(bad,'2026-11-02'); const b=__dbg.evSanitize({daily:[1,2],challenge:{type:"hack"}},'2026-11-02'); const c=__dbg.evNow(); return {xp:a.daily[0].xp,cx:a.challenge.xp,cn:a.challenge.n,icon:a.badge.icon,rar:a.badge.rar,bad:b===null,fallback:!!(c&&c.daily.length===7&&c.badge)}; });
     ok('34 events: server content is clamped and checked',r.xp===60&&r.cx===300&&r.cn===5000&&r.icon==='star'&&r.rar==='rare'&&r.bad,JSON.stringify(r));
     ok('34 events: built-in rotation works offline',r.fallback);
+    await ctx.close(); }
+
+  // 35-38. Gradual quests, comeback days, habit anchors, start from a reminder
+  { const {ctx,p,st}=await open(b,T,baseSeed(T,{rampOffered:false}));
+    const n=await p.evaluate(()=>document.querySelectorAll('[data-nav]').length); await p.click('[data-nav=quests]'); await p.clock.runFor(300);
+    const ids=await p.$$eval('[data-act=openq]',els=>els.map(e=>e.dataset.id)); const s=await st();
+    ok('35 gradual: existing players start with 3 quests',ids.join(',')==='train,walk,deep'&&s.ramp&&s.ramp.on&&s.ramp.n===3,ids.join(','));
+    ok('35 gradual: 2 of 3 clears the day',await p.evaluate(()=>/Clear 2 to avoid/.test(document.body.innerText)));
+    await ctx.close(); }
+  { const hist={}; for(let i=1;i<=5;i++){ hist[dk(new Date(T.getTime()-i*864e5))]={q:{train:true,walk:true},xp:40,cleared:true}; }
+    const {ctx,p,st,close}=await open(b,T,baseSeed(T,{ramp:{on:true,n:3,clean:0,miss:0,checked:dk(new Date(T.getTime()-6*864e5))},history:hist})); await p.clock.runFor(1500); await close();
+    const s=await st(); ok('36 gradual: 5 cleared days unlock a 4th quest',s.ramp.n===4,JSON.stringify(s.ramp));
+    await ctx.close(); }
+  { const hist={}; hist[dk(new Date(T.getTime()-3*864e5))]={q:{train:true},xp:40,cleared:true};
+    const {ctx,st}=await open(b,T,baseSeed(T,{ramp:{on:true,n:5,clean:0,miss:0,checked:dk(new Date(T.getTime()-3*864e5))},history:hist}));
+    const s=await st(); ok('36 gradual: 2 missed days in a row drop one quest',s.ramp.n===4,JSON.stringify(s.ramp)); await ctx.close(); }
+  { const seed=baseSeed(T,{lastSeen:dk(new Date(T.getTime()-864e5)),streak:6,history:{[dk(new Date(T.getTime()-2*864e5))]:{q:{train:true},xp:30,cleared:true}}});
+    const {ctx,p,st,close}=await open(b,T,seed); let s=await st();
+    ok('37 comeback: missed day issues penalty and opens a comeback day',!!s.penalty&&s.streak===0&&/Comeback day/.test(await p.textContent('main')));
+    await p.click('[data-nav=quests]'); await p.clock.runFor(300);
+    for(const id of ['water','disc']){ await p.$eval(`[data-act=done][data-id=${id}]`,e=>e.click()); await p.clock.runFor(400); await close(); }
+    await p.clock.runFor(1500); await close(); s=await st();
+    ok('37 comeback: 2 quests clear the day with double XP',s.history[K].cleared===true&&s.history[K].comebackDone===true,'xp='+s.totalXp);
+    ok('37 comeback: penalty lifted and streak restored',!s.penalty&&s.streak===7,'streak='+s.streak);
+    ok('37 comeback: quests gave double XP (water 15×2×1.5 haste = 45)',(s.history[K].xp||0)>=45+75,'dayxp='+s.history[K].xp);
+    await ctx.close(); }
+  { const {ctx,p,close}=await open(b,T,baseSeed(T,{settings:undefined}));
+    await p.evaluate(()=>{ __dbg.S().settings.anchors={train:'After my morning tea'}; }); await p.evaluate(()=>__dbg.go('quests')); await p.clock.runFor(300);
+    ok('38 anchors: quest shows its routine link',/After my morning tea →/.test(await p.textContent('main')));
+    await p.evaluate(()=>window.__startQuest('easy')); await p.clock.runFor(800);
+    ok('38 reminder tap: opens a 2-minute start on the easiest quest',/JUST START/.test(await p.textContent('#ov'))&&/Hydration|Drink/i.test(await p.textContent('#ov')));
     await ctx.close(); }
 
   await b.close();

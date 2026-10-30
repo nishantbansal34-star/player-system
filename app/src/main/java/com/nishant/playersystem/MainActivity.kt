@@ -176,6 +176,12 @@ class MainActivity : Activity() {
 
     /** Health Connect opens the app with these actions to show why health data is read: show the privacy screen. */
     private fun handlePrivacyIntent(i: Intent?) {
+        // A reminder tap carries "start": open a 2-minute start for that quest (or the easiest one).
+        i?.getStringExtra("start")?.let { q ->
+            i.removeExtra("start")
+            val safe = q.filter { it.isLetterOrDigit() || it == '_' }
+            web.postDelayed({ web.evaluateJavascript("window.__startQuest && window.__startQuest('$safe')", null) }, 1500)
+        }
         val a = i?.action ?: return
         if (a == "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" || a == "android.intent.action.VIEW_PERMISSION_USAGE") {
             web.postDelayed({ web.evaluateJavascript("window.__showPrivacy && window.__showPrivacy()", null) }, 1200)
