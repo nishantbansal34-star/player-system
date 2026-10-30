@@ -31,6 +31,9 @@ class MainActivity : Activity() {
         web = WebView(this)
         web.setBackgroundColor(Color.parseColor("#03050D"))
         web.settings.javaScriptEnabled = true
+        // No Android 12+ "stretch" overscroll: it stretched the whole page, bottom bar included.
+        web.overScrollMode = android.view.View.OVER_SCROLL_NEVER
+        web.isVerticalScrollBarEnabled = false
         web.settings.domStorageEnabled = true
         // Respect the phone's text size setting (capped so layouts stay usable).
         web.settings.textZoom = (resources.configuration.fontScale * 100).toInt().coerceIn(85, 130)
